@@ -9,7 +9,6 @@ const repository = {
             const object = await model.findOne({
                 where: {
                     email: entity.email,
-                    password: entity.password
                 }
             });
 
