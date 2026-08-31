@@ -1,47 +1,30 @@
 import initModels from '../models/init-models.js'
 import sequelize from '../config/database.js'
 
-const model = initModels(sequelize).users;
+const model = initModels(sequelize).user;
 
 const repository = {
-    async login(entity) {
+    async validate(email) {
         try {
             const object = await model.findOne({
-                where: {
-                    email: entity.email,
-                }
-            });
-
-            return (object === null) ? {"id": 0, "full_name": "", "email": "", "password": "", "role": "" } : object;
-
-        } catch (error) {
-            console.debug(error);
-            return null;
-        }
-    },
-    async validate(entity) {
-        try {
-            const object = await model.findOne({
-                where: {email: entity.email}
+                where: { email: email }
             });
             
-            console.log(!(object === null))
-            return !(object === null);
-
-        } catch (error) {
-            console.log(error);
-            return null;
-        }
+            return object;
+        } catch (error) { return null; }
     },
     async register(entity) {
+        try { return await model.create(entity);
+        } catch (error) { return null; }
+    },
+    async login(email) {
         try {
-            const object = await model.create(entity);
-            return object.id;
+            const object = await model.findOne({
+                where: { email: email }
+            });
 
-        } catch (error) {
-            console.debug(error);
-            return null;
-        }
+            return object;
+        } catch (error) { return null; }
     }
 }
 

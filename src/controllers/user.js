@@ -1,47 +1,33 @@
-import repository from '../repositories/user.js'
-import bcrypt from 'bcryptjs';
+import userService from '../services/user.js'
 
-const login = async (req, res) => {
-    const object = req.body;
-    const objectRes = await repository.login(object);
+const controller = {
+    async validate(req, res) {
+        try {
+            const object = req.body;
+            const response = await userService.validate(object);
 
-    if(objectRes != null) {
-        if(objectRes.id == 0) return res.status(200).json({"id": 0, "full_name": "", "email": "", "role": ""});
-        else {
-            if(bcrypt.compare(req.body.password, objectRes.password)) return res.status(200).json(
-                {
-                    "id": objectRes.id,
-                    "full_name": objectRes.full_name,
-                    "email": objectRes.email,
-                    "role": objectRes.role
-                }
-            );
-            else return res.status(200).json( {"id": 0, "full_name": "", "email": "", "role": ""});
-        }
-    } else return res.status(500).json({ "message": "Error al encontrar usuario." });
+            return sendResults(response.success, 200, 400, response.existe, res);
+        } catch (error) { return sendError(res) }
+    },
+    async register(req, res) {
+        try {
+            const object = req.body;
+            const response = await userService.register(object);
+
+            return sendResults(response.success, 201, 400, response.id, res);
+        } catch (error) { return sendError(res) }  
+    },
+    async login(req, res) {
+        try {
+            const object = req.body;
+            const response = await userService.login(object);
+
+            return sendResults(response.success, 200, 400, response.user, res);
+        } catch (error) { return sendError(res) }
+    }
 }
 
-const validate = async (req, res) => {
-    const object = req.body;
+const sendResults = (success, codOK, codError, result, res) => { return res.status(success ? codOK : codError).json(result); }
+const sendError = (res) => { return res.status(500).json({ message: "Error interno en el servidor." }) }
 
-    const booleanObjectRes = await repository.validate(object);
-    return sendResults(booleanObjectRes, res, "Error al validar correo.");
-}
-
-const register = async (req, res) => {
-    const object = req.body;
-
-    const salt = await bcrypt.genSalt(8);
-    req.body.password = await bcrypt.hash(req.body.password, 8);
-
-    const idObjectRes = await repository.register(object);
-    return sendResults(idObjectRes, res, )
-}
-
-const sendResults = (result, res, message) => {
-    if (result != null) return res.status(200).json(result);
-    else return res.status(500).json({ message });
-}
-
-const controller = { login, validate, register };
 export default controller;
