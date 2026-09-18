@@ -24,6 +24,30 @@ const controller = {
 
             return sendResults(response.success, 200, 400, response.user, res);
         } catch (error) { return sendError(res) }
+    },
+    async recover (req, res) {
+        try {
+            const object = req.body;
+            const response = await userService.recover(object);
+            
+            return sendResults(response.success, 200, 400, null, res);
+        } catch (error) { return sendError(res) }
+    },
+    async compare (req, res) {
+        try {
+            const object = req.body;
+            const response = await userService.compare(object);
+
+            return sendResults(response.success, 200, 400, response.correcto, res);
+        } catch (error) { return sendError(res) }
+    },
+    async reset (req, res) {
+        try {
+            const object = req.body;
+            const response = await userService.reset(object);
+
+            return sendResults(response.success, 200, 400, response.user, res);
+        } catch (error) { return sendError(res) }
     }
 }
 
