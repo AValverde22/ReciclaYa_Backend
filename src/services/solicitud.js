@@ -40,8 +40,13 @@ const services = {
                 if(solicitudes.length > 0) {
                     for(let i = 0; i < solicitudes.length; i++){
                         var solicitud = solicitudes[i];
+
+                        const day = solicitud.day.split("-");
+                        var brandNewDay = day[2] + "/" + day[1] + "/" + day[0];
+                        
                         solicitud = {
                             ... solicitud,
+                            day: brandNewDay,
                             full_name: solicitud.created_by_user.full_name,
                             profile_photo_url: solicitud.created_by_user.profile_photo_url,
                             score: parseFloat(solicitud.created_by_user.score)
