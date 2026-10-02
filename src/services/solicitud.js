@@ -35,11 +35,26 @@ const services = {
     async get(id) {
         try {
             const repoResponse = await repository.get(id);
-
             if(repoResponse !== null) {
+                var solicitudes = JSON.parse(JSON.stringify(repoResponse, null, 2));
+                if(solicitudes.length > 0) {
+                    for(let i = 0; i < solicitudes.length; i++){
+                        var solicitud = solicitudes[i];
+                        solicitud = {
+                            ... solicitud,
+                            full_name: solicitud.created_by_user.full_name,
+                            profile_photo_url: solicitud.created_by_user.profile_photo_url,
+                            score: parseFloat(solicitud.created_by_user.score)
+                        };
+
+                        delete solicitud['created_by_user'];
+                        solicitudes[i] = solicitud;
+                    }              
+                }
+
                 return {
                     success: true,
-                    solicitudes : repoResponse,
+                    solicitudes : solicitudes,
                     message: "Solicitudes obtenidas."
                 }
             }
