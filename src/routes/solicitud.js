@@ -4,5 +4,6 @@ import controller from '../controllers/solicitud.js'
 const router = express.Router();
 
 router.post('/', controller.create);
+router.get('/', controller.get)
 
 export default router;

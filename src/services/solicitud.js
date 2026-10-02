@@ -1,3 +1,4 @@
+import solicitud from "../models/solicitud.js";
 import repository from "../repositories/solicitud.js";
 
 const services = {
@@ -30,6 +31,31 @@ const services = {
                 message: error.message
             }
         }        
+    },
+    async get(id) {
+        try {
+            const repoResponse = await repository.get(id);
+
+            if(repoResponse !== null) {
+                return {
+                    success: true,
+                    solicitudes : repoResponse,
+                    message: "Solicitudes obtenidas."
+                }
+            }
+
+            return {
+                success: false,
+                solicitudes: null,
+                message: "Error al obtener solicitudes."
+            }
+        } catch (error) {
+            return {
+                success: false,
+                solicitudes: null,
+                message: error.message
+            }
+        }
     }
 }
 

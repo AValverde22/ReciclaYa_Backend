@@ -8,6 +8,15 @@ const controller = {
 
             return sendResults(response.success, 200, 400, null, res);
         } catch (error) { return sendError(res); }
+    },
+    async get(req, res) {
+        try {
+            const id = req.query.created_by;
+            const response = await solicitudService.get(id);
+
+            return sendResults(response.success, 200, 400, response.solicitudes, res);
+
+        } catch (error) { return sendError(res); }
     }
 }
 
