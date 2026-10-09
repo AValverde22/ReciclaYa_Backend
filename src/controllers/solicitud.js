@@ -18,6 +18,22 @@ const controller = {
 
         } catch (error) { return sendError(res); }
     },
+    async getAceptadas(req, res) {
+        try {
+            const id = req.query.user_id;
+            const response = await solicitudService.getAceptadas(id);
+
+            return sendResults(response.success, 200, 400, response.solicitudes, res);
+        } catch (error) { return sendError(res); }
+    },
+    async getDisponibles(req, res) {
+        try {
+            const query = req.query;
+            const response = await solicitudService.getDisponibles(query);
+
+            return sendResults(response.success, 200, 400, response.solicitudes, res);
+        } catch (error) { console.log(error); return sendError(res); }
+    },
     async update(req, res) {
         try {
             const id = req.params.id;
@@ -33,6 +49,15 @@ const controller = {
             const response = await solicitudService.cancel(id);
             
             return sendResults(response.success, 200, 400, null, res);
+        } catch (error) {console.log(error);  return sendError(res); }
+    },
+    async accept(req, res) {
+        try {
+            const solicitudID = req.params.id;
+            const userID = req.query.user_id;
+            const response = await solicitudService.accept(solicitudID, userID);
+            
+            return sendResults(response.success, 200, 400, response.aceptado, res);
         } catch (error) {console.log(error);  return sendError(res); }
     }
 }
