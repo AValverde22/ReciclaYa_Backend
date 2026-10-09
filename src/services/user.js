@@ -59,12 +59,7 @@ const services = {
             if (!userRes) return { 
                 success: true,
                 message: "Credenciales inválidas.",
-                user: { 
-                    id: -1,
-                    full_name: "",
-                    email: "",
-                    role: ""
-                }
+                user: { id: -1 }
             }
 
             // Contraseña inválida
@@ -72,35 +67,22 @@ const services = {
             if(!isPasswordValid) return {
                 success: true,
                 message: "Credenciales inválidas.",
-                user: { 
-                    id: -1,
-                    full_name: "",
-                    email: "",
-                    role: ""
-                }
+                user: { id: -1 }
             }
+
+            const userPlain = userRes.get({ plain: true });
+            const { password: _, ...userWithoutPassword } = userPlain;
 
             return {
                 success: true,
                 message: "Inicio de sesión exitoso.",
-                user: {
-                    id: userRes.id,
-                    full_name: userRes.full_name,
-                    email: userRes.email,
-                    role: userRes.role
-                }
+                user: userWithoutPassword
             }
         } catch (error) {
-            console.log(error);
             return {
                 success: false,
                 message: error.message,
-                user: { 
-                    id: -1,
-                    full_name: "",
-                    email: "",
-                    role: ""
-                }
+                user: { id: -1 }
             }
         }
     },
@@ -182,26 +164,19 @@ const services = {
             const hashedPassword = await bcrypt.hash(password, salt);
             const userRes = await repository.reset(email, hashedPassword);
 
+            const userPlain = userRes.get({ plain: true });
+            const { password: _, ...userWithoutPassword } = userPlain;
+
             return {
                 success: true,
                 message: "Contraseña reseteada exitosamente.",
-                user: {
-                    id: userRes.id,
-                    full_name: userRes.full_name,
-                    email: email,
-                    role: userRes.role
-                }
+                user: userWithoutPassword
             }
         } catch (error) {
             return {
                 success: false,
                 message: error.message,
-                user: { 
-                    id: -1,
-                    full_name: "",
-                    email: "",
-                    role: ""
-                }
+                user: { id: -1,}
             }
         }
     }
