@@ -40,7 +40,7 @@ export default class solicitud extends Model {
       allowNull: false
     },
     status: {
-      type: DataTypes.ENUM("Disponible","Finalizada","Cancelada"),
+      type: DataTypes.ENUM("Disponible","Finalizada","Cancelada","Pendiente"),
       allowNull: false,
       defaultValue: "Disponible"
     },
