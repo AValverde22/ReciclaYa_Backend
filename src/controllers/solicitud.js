@@ -17,6 +17,23 @@ const controller = {
             return sendResults(response.success, 200, 400, response.solicitudes, res);
 
         } catch (error) { return sendError(res); }
+    },
+    async update(req, res) {
+        try {
+            const id = req.params.id;
+            const object = req.body;
+            const response = await solicitudService.update(id, object);
+
+            return sendResults(response.success, 200, 400, null, res);
+        } catch (error) {console.log(error);  return sendError(res); }
+    },
+    async cancel(req, res) {
+        try {
+            const id = req.params.id;
+            const response = await solicitudService.cancel(id);
+            
+            return sendResults(response.success, 200, 400, null, res);
+        } catch (error) {console.log(error);  return sendError(res); }
     }
 }
 

@@ -68,6 +68,55 @@ const services = {
                 message: error.message
             }
         }
+    },
+    async update(id, objSolicitud) {
+        try {
+            const { id: _, ...cleanObject } = objSolicitud;
+
+            const splitDay = cleanObject.day.split("/");
+            cleanObject.day = splitDay[1] + "/" + splitDay[0] + "/" + splitDay[2];
+            const repoResponse = await repository.update(id, cleanObject);
+
+            if(repoResponse) 
+                return {
+                    success: true,
+                    message: "Solicitud actualizada"
+                }
+
+            return {
+                success: false,
+                message: "No se pudo actualizar la solicitud"
+            }
+            
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message
+            }
+        }
+    }, 
+    async cancel(id) {
+        try {
+            const repoResponse = await repository.cancel(id);
+                        console.log(repoResponse)
+
+            if(repoResponse)
+                return {
+                    success: true,
+                    message: "Solicitud Actualizada"
+                }
+
+            return {
+                success: false,
+                message: "No se puedo cancelar la solicitud"
+            }
+
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message
+            }
+        }
     }
 }
 

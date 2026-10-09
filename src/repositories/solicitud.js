@@ -64,6 +64,26 @@ const repository = {
             });
 
         } catch (error) { return null; }
+    },
+    async update(id, entity) {
+        try {
+            await model.update(
+                entity ,
+                { where: { id: id} }
+            );
+
+            return true;
+        } catch (error) { return null; }
+    },
+    async cancel(id) {
+        try {
+            await model.update(
+                { status: 'Cancelada' },
+                { where: { id: id } }
+            );
+
+            return true;
+        } catch (error) { return null; }
     }
 }
 
