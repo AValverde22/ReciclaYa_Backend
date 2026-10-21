@@ -54,7 +54,13 @@ const repository = {
 
             return object;
         } catch (error) { return null; }
-    }
+    },
+    async actualizarScore(userId, nuevoScore){
+        return await model.update(
+            { score: nuevoScore },
+            { where: { id: userId }}
+        );
+    }  
 }
 
 export default repository;

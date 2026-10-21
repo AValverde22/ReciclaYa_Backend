@@ -63,6 +63,6 @@ const controller = {
 }
 
 const sendResults = (success, codOk, codError, result, res) => { return res.status(success ? codOk : codError).json(result); }
-const sendError = (res) => { return res.status(500).json({message: "Error interno en el servidor" }) }
+const sendError = (res) => { return res.status(500).json({ message: "Error interno en el servidor" }) }
 
 export default controller;

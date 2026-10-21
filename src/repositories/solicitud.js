@@ -13,7 +13,7 @@ cron.schedule('*/1 * * * *', async () => {
         });
 
         await model.update(
-            { status: 'Cancelada' },
+            { status: 'Cancelada' },    
             { where:  
                 {
                     [Op.or]: [
@@ -164,7 +164,18 @@ const repository = {
 
             return true;
         } catch (error) { return null; }
-    }
+    },
+    async buscarSolicitudPendienteExistente(recicladorID){
+        return await model.findOne(
+            {
+                attributes : ['id','status'],
+                where: { accepted_by: recicladorID, status : 'Pendiente' } 
+            }
+        )
+    },
+    async encontrarPorId(id) {
+    return await model.findByPk(id);
+    },
 }
 
 export default repository;
