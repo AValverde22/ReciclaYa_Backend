@@ -209,6 +209,15 @@ const services = {
                 }
             }
 
+            const solicitudPendiente = await repository.buscarSolicitudPendienteExistente(userID);
+            if(solicitudPendiente) {
+                return {
+                    success: false,
+                    message: "El reciclador tiene una solicitud pendiente por cumplir.",
+                    aceptado: false
+                }
+            }
+
             const soliResponse = await repository.accept(solicitudID, userID);
             if(soliResponse) {
                 return {

@@ -2,6 +2,7 @@ import express from 'express'
 import controller from '../controllers/user.js'
 
 const router = express.Router();
+router.get('/:id/score', controller.getScore);
 
 router.post('/validate', controller.validate);
 router.post('/register', controller.register);

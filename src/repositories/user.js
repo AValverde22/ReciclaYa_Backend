@@ -4,6 +4,10 @@ import sequelize from '../config/database.js'
 const model = initModels(sequelize).user;
 
 const repository = {
+    async getScore(id) {
+        const user = await model.findByPk(id, {attributes:['score'], raw:true});
+        return user ? {score:Number(user.score)} : null;
+    },
     async getID(email) {
         try {
             const object = await model.findOne({ 
@@ -54,7 +58,13 @@ const repository = {
 
             return object;
         } catch (error) { return null; }
-    }
+    },
+    async actualizarScore(userId, nuevoScore){
+        return await model.update(
+            { score: nuevoScore },
+            { where: { id: userId }}
+        );
+    }  
 }
 
 export default repository;
