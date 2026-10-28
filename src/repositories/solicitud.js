@@ -13,7 +13,11 @@ cron.schedule('*/1 * * * *', async () => {
         });
 
         await model.update(
+<<<<<<< HEAD
             { status: 'Cancelada' },
+=======
+            { status: 'Cancelada' },    
+>>>>>>> 6adfab74a2cf075f93d455c40a6f2856cd73334c
             { where:  
                 {
                     [Op.or]: [
@@ -164,7 +168,22 @@ const repository = {
 
             return true;
         } catch (error) { return null; }
+<<<<<<< HEAD
     }
+=======
+    },
+    async buscarSolicitudPendienteExistente(recicladorID){
+        return await model.findOne(
+            {
+                attributes : ['id','status'],
+                where: { accepted_by: recicladorID, status : 'Pendiente' } 
+            }
+        )
+    },
+    async encontrarPorId(id) {
+    return await model.findByPk(id);
+    },
+>>>>>>> 6adfab74a2cf075f93d455c40a6f2856cd73334c
 }
 
 export default repository;

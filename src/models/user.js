@@ -34,8 +34,8 @@ export default class user extends Model {
       defaultValue: "https:\/\/cdn.pixabay.com\/photo\/2015\/10\/05\/22\/37\/blank-profile-picture-973460_640.png"
     },
     score: {
-      type: DataTypes.DECIMAL,
-      allowNull: true,
+      type: DataTypes.FLOAT,
+      allowNull: false,
       defaultValue: 5
     }
   }, {
