@@ -6,7 +6,9 @@
   "author": "",
   "type": "module",
   "main": "index.js",
+  "packageManager": "pnpm@12.4.2",
   "scripts": {
+    "test": "node --experimental-test-module-mocks --test tests/*.test.js",
     "dev": "nodemon index.js",
     "start": "node index.js",
     "init": "node index.js -init"

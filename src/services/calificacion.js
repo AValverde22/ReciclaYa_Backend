@@ -4,8 +4,8 @@ const services = {
     async create(objCalificacion) {
         try {
             const { solicitud_id, evaluador_id, puntuacion, comentario } = objCalificacion;
-            const scoreInt = parseInt(puntuacion, 10);
-            if (isNaN(scoreInt) || scoreInt < 1 || scoreInt > 5) {
+            const scoreInt = Number(puntuacion);
+            if (!Number.isInteger(scoreInt) || scoreInt < 1 || scoreInt > 5) {
                 return {
                     success: false,
                     message: "La puntuación debe ser un número entero entre 1 y 5."
@@ -83,7 +83,7 @@ const services = {
                 success: true,
                 message: "Calificación registrada con éxito.",
                 data: repoResponse,
-                nuevoScore: nuevoScore
+                nuevoScore: repo
             };
 
         } catch (error) {

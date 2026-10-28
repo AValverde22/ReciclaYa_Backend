@@ -52,6 +52,12 @@ export default class solicitud extends Model {
         key: 'id'
       }
     },
+    recycler_latitude: { type: DataTypes.DOUBLE, allowNull: true },
+    recycler_longitude: { type: DataTypes.DOUBLE, allowNull: true },
+    location_updated_at: { type: DataTypes.DATE, allowNull: true },
+    closed_at: { type: DataTypes.DATE, allowNull: true },
+    user_confirmed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    recycler_confirmed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     accepted_by: {
       type: DataTypes.INTEGER,
       allowNull: true,

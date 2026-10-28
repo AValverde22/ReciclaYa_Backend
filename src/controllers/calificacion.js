@@ -27,7 +27,7 @@ const controller = {
 
     async getBySolicitud(req, res) {
         try {
-            const { solicitud_id } = req.params;
+            const solicitud_id = req.params.id;
             const evaluador_id = req.user?.id || req.query.evaluador_id;
 
             const response = await calificacionService.getBySolicitud(solicitud_id, evaluador_id);

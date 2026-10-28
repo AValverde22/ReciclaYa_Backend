@@ -5,7 +5,9 @@ import _user from  "./user.js";
 import _verification_code from  "./verification_code.js";
 import _calificacion from "./calificacion.js";
 
+const cache = new WeakMap();
 export default function initModels(sequelize) {
+  if (cache.has(sequelize)) return cache.get(sequelize);
   const solicitud = _solicitud.init(sequelize, DataTypes);
   const user = _user.init(sequelize, DataTypes);
   const verification_code = _verification_code.init(sequelize, DataTypes);
@@ -24,10 +26,12 @@ export default function initModels(sequelize) {
   calificacion.belongsTo(user, { as: "evaluado", foreignKey: "evaluado_id" });
   user.hasMany(calificacion, { as: "calificaciones_recibidas", foreignKey: "evaluado_id" });
 
-  return {
+  const models = {
     solicitud,
     user,
     verification_code,
     calificacion,
   };
+  cache.set(sequelize, models);
+  return models;
 }
