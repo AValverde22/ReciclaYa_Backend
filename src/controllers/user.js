@@ -1,6 +1,14 @@
 import userService from '../services/user.js'
 
 const controller = {
+    async getScore(req, res) {
+        try {
+            const result = await userService.getScore(req.params.id);
+            return res.status(result.success ? 200 : result.status).json(
+                result.success ? result.score : {message:result.message}
+            );
+        } catch (error) { return sendError(res); }
+    },
     async validate(req, res) {
         try {
             const object = req.body;

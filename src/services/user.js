@@ -6,6 +6,12 @@ import sendEmail from './email.js'
 import bcrypt from 'bcryptjs'
 
 const services = {
+    async getScore(value) {
+        if (!/^[1-9]\d*$/.test(String(value)) || !Number.isSafeInteger(Number(value)))
+            return {success:false, status:400, message:'Identificador inválido.'};
+        const score = await repository.getScore(Number(value));
+        return score ? {success:true, score} : {success:false, status:404, message:'Usuario no encontrado.'};
+    },
     async validate(objUsuario) {
         try {
             const { email } = objUsuario;

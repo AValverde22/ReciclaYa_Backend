@@ -5,31 +5,16 @@ import { Op } from 'sequelize'
 
 const model = initModels(sequelize).solicitud;
 
-cron.schedule('*/1 * * * *', async () => {
+const expirationTask = cron.createTask('*/1 * * * *', async () => {
     try {
-        const date = new Date().toLocaleString('en-CA', {
-            timeZone: 'America/Lima',
-            hour12: false
-        });
-
-        await model.update(
-            { status: 'Cancelada' },
-            { where:  
-                {
-                    [Op.or]: [
-                        {
-                            day: { [Op.lt]: date.slice(0, 10) }
-                        },
-                        {
-                            day : { [Op.e]: date.slice(0, 10) },
-                            time: { [Op.lte]: date.slice(12, 20) }
-                        }
-                    ]
-                }
-            }
-        );
+        await sequelize.query(`UPDATE public.solicitud SET status = 'Cancelada', closed_at = CURRENT_TIMESTAMP
+            WHERE status = 'Disponible'
+            AND (day + time) <= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Lima')`);
     } catch (error) { console.log(error.message); }
 });
+
+export const startExpirationTask = () => expirationTask.start();
+export const stopExpirationTask = () => expirationTask.destroy();
 
 const repository = {
     async create(entity) {
@@ -39,11 +24,11 @@ const repository = {
     async getByCreator(id) {
         try { 
             return await model.findAll({
-                attributes: ['id', 'type', 'size', 'day', 'time', 'address', 'latitude', 'longitude', 'status'],
+                attributes: ['id', 'type', 'size', 'day', 'time', 'address', 'latitude', 'longitude', 'status', 'closed_at'],
                 where: 
                 { 
                     created_by: id,
-                    status: ['Disponible', 'Cancelada', 'Finalizada']
+                    status: ['Disponible', 'Pendiente', 'Cancelada', 'Finalizada']
                 },
                 include: [
                     {
@@ -72,11 +57,11 @@ const repository = {
     async getByAccepter(id) {
         try { 
             return await model.findAll({
-                attributes: ['id', 'type', 'size', 'day', 'time', 'address', 'latitude', 'longitude', 'status'],
+                attributes: ['id', 'type', 'size', 'day', 'time', 'address', 'latitude', 'longitude', 'status', 'closed_at'],
                 where: 
                 { 
                     accepted_by: id,
-                    status: ['Cancelada', 'Finalizada']
+                    status: ['Pendiente', 'Cancelada', 'Finalizada']
                 },
                 include: [
                     {
@@ -132,7 +117,7 @@ const repository = {
     async cancel(id) {
         try {
             await model.update(
-                { status: 'Cancelada' },
+                { status: 'Cancelada', closed_at: new Date() },
                 { where: { id: id } }
             );
 
@@ -164,7 +149,18 @@ const repository = {
 
             return true;
         } catch (error) { return null; }
-    }
+    },
+    async buscarSolicitudPendienteExistente(recicladorID){
+        return await model.findOne(
+            {
+                attributes : ['id','status'],
+                where: { accepted_by: recicladorID, status : 'Pendiente' } 
+            }
+        )
+    },
+    async encontrarPorId(id) {
+    return await model.findByPk(id);
+    },
 }
 
 export default repository;
