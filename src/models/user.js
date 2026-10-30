@@ -37,6 +37,11 @@ export default class user extends Model {
       type: DataTypes.FLOAT,
       allowNull: false,
       defaultValue: 5
+    },
+    two_factor_enabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     }
   }, {
     sequelize,
