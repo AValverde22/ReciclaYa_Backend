@@ -1,4 +1,5 @@
 import userService from '../services/user.js'
+import twoFactorService from '../services/two_factor.js'
 
 const controller = {
     async getScore(req, res) {
@@ -56,6 +57,34 @@ const controller = {
 
             return sendResults(response.success, 200, 400, response.user, res);
         } catch (error) { return sendError(res) }
+    },
+    async getTwoFactor(req, res) {
+        try {
+            const result = await twoFactorService.getStatus(req.params.id);
+            return res.status(result.success ? 200 : result.status).json(
+                result.success ? { enabled: result.enabled } : { message: result.message }
+            );
+        } catch (error) { return sendError(res); }
+    },
+    async setTwoFactor(req, res) {
+        try {
+            const result = await twoFactorService.setStatus(req.params.id, req.body ?? {});
+            return res.status(result.success ? 200 : result.status).json(
+                result.success ? { result: result.result, enabled: result.enabled } : { message: result.message }
+            );
+        } catch (error) { return sendError(res); }
+    },
+    async verifyLogin(req, res) {
+        try {
+            const response = await twoFactorService.verify(req.body ?? {});
+            return res.status(200).json(response);
+        } catch (error) { return sendError(res); }
+    },
+    async resendLoginCode(req, res) {
+        try {
+            const response = await twoFactorService.resend(req.body ?? {});
+            return res.status(200).json(response);
+        } catch (error) { return sendError(res); }
     }
 }
 

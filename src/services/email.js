@@ -12,6 +12,7 @@ const REFRESH_TOKEN = process.env.REFRESH_TOKEN;
 const oAuth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
 oAuth2Client.setCredentials( { refresh_token: REFRESH_TOKEN });
 
+// Devuelve true si el correo se envió y false si falló (los llamadores pueden ignorarlo).
 const sendEmail = async(destino, asunto, mensaje) => {
     try {
         const accessToken = await oAuth2Client.getAccessToken();
@@ -35,7 +36,11 @@ const sendEmail = async(destino, asunto, mensaje) => {
         };
 
         await transport.sendMail(mailOptions);
-    } catch (error) { console.error(error.message); }
+        return true;
+    } catch (error) {
+        console.error(error.message);
+        return false;
+    }
 }
 
 export default sendEmail;

@@ -37,7 +37,7 @@ const repository = {
     async login(email) {
         try {
             const object = await model.findOne({
-                attributes: ['id', 'full_name', 'email', 'password', 'role', 'profile_photo_url', 'score'],
+                attributes: ['id', 'full_name', 'email', 'password', 'role', 'profile_photo_url', 'score', 'two_factor_enabled'],
                 where: { email: email }
             });
 
@@ -58,6 +58,24 @@ const repository = {
 
             return object;
         } catch (error) { return null; }
+    },
+    async getSecurity(id) {
+        return await model.findByPk(id, {
+            attributes: ['id', 'email', 'password', 'two_factor_enabled']
+        });
+    },
+    async updateTwoFactor(id, enabled) {
+        const [filas] = await model.update(
+            { two_factor_enabled: enabled },
+            { where: { id: id } }
+        );
+        return filas > 0;
+    },
+    async getSessionUser(id) {
+        return await model.findByPk(id, {
+            attributes: ['id', 'full_name', 'email', 'role', 'profile_photo_url', 'score', 'two_factor_enabled'],
+            raw: true
+        });
     },
     async actualizarScore(userId, nuevoScore){
         return await model.update(

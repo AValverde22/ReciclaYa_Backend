@@ -1,5 +1,6 @@
 import repository from '../repositories/user.js'
 import verification_code from './verification_code.js'
+import twoFactor from './two_factor.js'
 import sendEmail from './email.js'
 
 
@@ -78,6 +79,21 @@ const services = {
 
             const userPlain = userRes.get({ plain: true });
             const { password: _, ...userWithoutPassword } = userPlain;
+
+            // 2FA activo: no se entregan los datos del usuario hasta validar el código
+            if (userPlain.two_factor_enabled) {
+                const reto = await twoFactor.startChallenge(userPlain);
+                return {
+                    success: true,
+                    message: reto.sent ? "Código de verificación enviado." : "No se pudo enviar el código de verificación.",
+                    user: {
+                        id: -1,
+                        requires_2fa: true,
+                        code_sent: reto.sent,
+                        challenge: reto.challenge
+                    }
+                }
+            }
 
             return {
                 success: true,
