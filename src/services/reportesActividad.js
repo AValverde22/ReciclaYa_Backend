@@ -1,7 +1,6 @@
 import repository from '../repositories/reportesActividad.js';
 
 const service = {
-    // Registrar un reporte de actividad sospechosa.
     async registrar(userId, datos = {}) {
         const usuarioId = Number(userId);
         const logId = Number(datos.logAccesos_id);
@@ -14,7 +13,7 @@ const service = {
             throw new Error('El ID del registro de acceso no es válido');
         }
 
-        const acceso = await repository.verificarUsuario(logId, usuarioId);
+        const acceso = await repository.verificarRegistroUsuario(logId, usuarioId);
 
         if (!acceso) {
             throw new Error('El registro de acceso no existe o no pertenece al usuario');
@@ -70,10 +69,6 @@ const service = {
 
         return reporte;
     },
-
-    async buscarTodos() {
-        return await repository.buscarTodos();
-    }
 };
 
 export default service;
