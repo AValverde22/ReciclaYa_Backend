@@ -5,6 +5,8 @@ import _user from  "./user.js";
 import _verification_code from  "./verification_code.js";
 import _calificacion from "./calificacion.js";
 import _two_factor_challenge from "./two_factor_challenge.js";
+import _logAccesos from './logAccesos.js';
+import _reportesActividad from "./reportesActividad.js";
 
 const cache = new WeakMap();
 export default function initModels(sequelize) {
@@ -14,6 +16,8 @@ export default function initModels(sequelize) {
   const verification_code = _verification_code.init(sequelize, DataTypes);
   const calificacion = _calificacion.init(sequelize, DataTypes);
   const two_factor_challenge = _two_factor_challenge.init(sequelize, DataTypes);
+  const logAccesos = _logAccesos.init(sequelize, DataTypes);
+  const reportesActividad = _reportesActividad.init(sequelize, DataTypes);
 
   solicitud.belongsTo(user, { as: "accepted_by_user", foreignKey: "accepted_by"});
   user.hasMany(solicitud, { as: "solicituds", foreignKey: "accepted_by"});
@@ -29,6 +33,12 @@ export default function initModels(sequelize) {
   user.hasMany(calificacion, { as: "calificaciones_recibidas", foreignKey: "evaluado_id" });
   two_factor_challenge.belongsTo(user, { as: "user", foreignKey: "user_id"});
   user.hasOne(two_factor_challenge, { as: "two_factor_challenge", foreignKey: "user_id"});
+  user.hasMany(logAccesos, {as: 'logs', foreignKey: 'user_id'});
+  logAccesos.belongsTo(user, {as: 'usuario', foreignKey: 'user_id'});
+  reportesActividad.belongsTo(user, {as: "usuario", foreignKey: "user_id"});
+  user.hasMany(reportesActividad, {as: "reporte", foreignKey: "user_id"});
+  reportesActividad.belongsTo(logAccesos, {as: "log_acceso", foreignKey: "logAccesos_id"});
+  logAccesos.hasMany(reportesActividad, {as: "reportes", foreignKey: "logAccesos_id"});
 
   const models = {
     solicitud,
@@ -36,6 +46,8 @@ export default function initModels(sequelize) {
     verification_code,
     calificacion,
     two_factor_challenge,
+    logAccesos,
+    reportesActividad
   };
   cache.set(sequelize, models);
   return models;

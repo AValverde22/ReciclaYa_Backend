@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import repository from '../repositories/two_factor.js'
 import userRepository from '../repositories/user.js'
 import sendEmail from './email.js'
+import logAccesosServices from './logAccesos.js';
 
 export const CODE_TTL_MS = 10 * 60 * 1000;          // vigencia de cada código
 export const MAX_ATTEMPTS = 5;                       // intentos por código
@@ -55,7 +56,7 @@ async function findPending(email, challenge) {
 const services = {
     // Se invoca desde el login cuando la contraseña ya fue validada.
     // El código se envía al correo registrado y nunca viaja en la respuesta.
-    async startChallenge(user) {
+    async startChallenge(user, datosAcceso = {}) {
         const code = generateCode();
         const challenge = generateChallenge();
         const now = new Date();
@@ -67,7 +68,15 @@ const services = {
             expires_at: new Date(now.getTime() + CODE_TTL_MS),
             attempts: 0,
             sent_at: now,
-            created_at: now
+            created_at: now,
+            //Asociar los datos de acceso con el reto para registrarlos
+            direccion_ip: datosAcceso.direccion_ip ?? null,
+            app_version: datosAcceso.app_version ?? null,
+            ciudad: datosAcceso.ciudad ?? null,
+            pais: datosAcceso.pais ?? null,
+            latitud: datosAcceso.latitud ?? null,
+            longitud: datosAcceso.longitud ?? null,
+            dispositivo: datosAcceso.dispositivo ?? null
         });
 
         if (await sendCode(user.email, code)) return { sent: true, challenge };
@@ -88,13 +97,31 @@ const services = {
 
         // El intento se reserva antes de comparar para que peticiones simultáneas no superen el límite
         if (!await repository.reserveAttempt(pending.id, MAX_ATTEMPTS)) return { result: RESULT.BLOCKED };
-        if (!await bcrypt.compare(value, pending.code_hash)) return { result: RESULT.INVALID };
+        if (!await bcrypt.compare(value, pending.code_hash)) {
+            await registrarLogAcceso(
+                pending.user_id,
+                pending,
+                'Rechazado',
+                'Verificación multifactor'
+            );
 
+            return { result: RESULT.INVALID };
+        }
         // Uso único: solo la petición que consume el reto inicia sesión
         if (!await repository.consume(pending.id)) return { result: RESULT.INVALID_CHALLENGE };
 
         const user = await userRepository.getSessionUser(pending.user_id);
-        return user ? { result: RESULT.VALID, user } : { result: RESULT.INVALID_CHALLENGE };
+        if (!user) {
+            return { result: RESULT.INVALID_CHALLENGE };
+        }
+
+        await registrarLogAcceso(
+            pending.user_id,
+            pending,
+            'Autorizado',
+            'Inicio de sesión'
+        );
+        return {result: RESULT.VALID, user};
     },
 
     async resend({ email, challenge } = {}) {
@@ -147,6 +174,25 @@ const services = {
         if (!enabled) await repository.deleteByUser(user.id);
 
         return { success: true, result: RESULT.UPDATED, enabled };
+    },
+
+    //Función auxiliar para registrar los intentos de login con 2FA
+    async registrarLogAcceso(userId, datos, estado, tipoActividad = 'Inicio de sesión') {
+        try {
+            await logAccesosServices.registrar(userId, {
+                direccion_ip: datos.direccion_ip ?? null,
+                app_version: datos.app_version ?? null,
+                ciudad: datos.ciudad ?? null,
+                pais: datos.pais ?? null,
+                latitud: datos.latitud ?? null,
+                longitud: datos.longitud ?? null,
+                dispositivo: datos.dispositivo ?? null,
+                estado,
+                tipo_actividad: tipoActividad
+            });
+        } catch (error) {
+            console.error('Error al registrar el historial de acceso:', error);
+        }
     }
 };
 

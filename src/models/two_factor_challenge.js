@@ -48,6 +48,35 @@ export default class two_factor_challenge extends Model {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: Sequelize.fn('now')
+    },
+    //Atributos metadatos para mantenerlos al momento de registrar los inicios de sesión y proceso de doble autenticador en el modelo logAccesos
+    direccion_ip: {
+      type: DataTypes.STRING(45),
+      allowNull: true
+    },
+    app_version: {
+      type: DataTypes.STRING(20),
+      allowNull: true
+    },
+    ciudad: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    pais: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    latitud: {
+      type: DataTypes.DOUBLE,
+      allowNull: true
+    },
+    longitud: {
+      type: DataTypes.DOUBLE,
+      allowNull: true
+    },
+    dispositivo: {
+      type: DataTypes.STRING(150),
+      allowNull: true
     }
   }, {
     sequelize,

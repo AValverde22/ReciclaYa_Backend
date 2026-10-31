@@ -13,7 +13,18 @@ const controller = {
     async validate(req, res) {
         try {
             const object = req.body;
-            const response = await userService.validate(object);
+    
+            const datosAcceso = {
+                direccion_ip: req.ip,
+                app_version: object.app_version ?? null,
+                ciudad: object.ciudad ?? null,
+                pais: object.pais ?? null,
+                latitud: object.latitud ?? null,
+                longitud: object.longitud ?? null,
+                dispositivo: object.dispositivo ?? null
+            };
+
+            const response = await userService.validate(object, datosAcceso);
 
             return sendResults(response.success, 200, 400, response.existe, res);
         } catch (error) { return sendError(res) }

@@ -2,7 +2,7 @@ import repository from '../repositories/user.js'
 import verification_code from './verification_code.js'
 import twoFactor from './two_factor.js'
 import sendEmail from './email.js'
-
+import logAccesosServices from './logAccesos.js'
 
 import bcrypt from 'bcryptjs'
 
@@ -57,7 +57,7 @@ const services = {
             }
         }
     }, 
-    async login(objUsuario) {
+    async login(objUsuario, datosAcceso) {
         try {
             const { email, password } = objUsuario;
             
@@ -71,10 +71,33 @@ const services = {
 
             // Contraseña inválida
             const isPasswordValid = await bcrypt.compare(password, userRes.password);
-            if(!isPasswordValid) return {
-                success: true,
-                message: "Credenciales inválidas.",
-                user: { id: -1 }
+            if(!isPasswordValid) {
+
+            // Registrar el intento de inicio de sesión rechazado por contraseña invalida
+                try {
+                    await logAccesosServices.registrarAcceso(userRes.id, {
+                        direccion_ip: datosAcceso.direccion_ip ?? null,
+                        app_version: datosAcceso.app_version ?? null,
+                        ciudad: datosAcceso.ciudad ?? null,
+                        pais: datosAcceso.pais ?? null,
+                        latitud: datosAcceso.latitud ?? null,
+                        longitud: datosAcceso.longitud ?? null,
+                        estado: 'Rechazado',
+                        tipo_actividad: 'Inicio de sesión',
+                        dispositivo: datosAcceso.dispositivo ?? null
+                    });
+                } catch (logError) {
+                    console.error(
+                        'Error al registrar el intento de acceso:',
+                        logError
+                    );
+                }
+                
+                return {
+                    success: true,
+                    message: "Credenciales inválidas.",
+                    user: { id: -1 },
+                };
             }
 
             const userPlain = userRes.get({ plain: true });
@@ -82,7 +105,7 @@ const services = {
 
             // 2FA activo: no se entregan los datos del usuario hasta validar el código
             if (userPlain.two_factor_enabled) {
-                const reto = await twoFactor.startChallenge(userPlain);
+                const reto = await twoFactor.startChallenge(userPlain, datosAcceso); //Enviar también los datos de acceso al reto nultifactor
                 return {
                     success: true,
                     message: reto.sent ? "Código de verificación enviado." : "No se pudo enviar el código de verificación.",
@@ -95,11 +118,29 @@ const services = {
                 }
             }
 
+            //Una vez validado el acceso del usuario, sus datos se envían a la tabla/modelo log_solicitudes
+            try {
+            await logAccesosServices.registrarAcceso(userPlain.id, {
+                direccion_ip: datosAcceso.direccion_ip ?? null,
+                app_version: datosAcceso.app_version ?? null,
+                ciudad: datosAcceso.ciudad ?? null,
+                pais: datosAcceso.pais ?? null,
+                latitud: datosAcceso.latitud ?? null,
+                longitud: datosAcceso.longitud ?? null,
+                estado: 'Autorizado',
+                tipo_actividad: 'Inicio de sesión',
+                dispositivo: datosAcceso.dispositivo ?? null
+            });
+            } catch (logError) {
+                console.error('Error al registrar el historial de acceso:', logError);
+            }
+
             return {
                 success: true,
                 message: "Inicio de sesión exitoso.",
                 user: userWithoutPassword
-            }
+            };
+
         } catch (error) {
             return {
                 success: false,
