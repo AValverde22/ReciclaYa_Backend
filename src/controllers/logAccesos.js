@@ -1,6 +1,32 @@
 import logAccesosService from '../services/logAccesos.js';
 
 const controller = {
+
+    async registrar(req, res) {
+        try {
+            const { userId } = req.params;
+
+            const datos = {
+                ...req.body,
+                direccion_ip: req.ip
+            };
+
+            const response = await logAccesosService.registrar(userId, datos);
+
+            return sendResults(true, 201, 400, response, res);
+
+        } catch (error) {
+            console.error('Error al registrar acceso:', error);
+            if (error.message) {
+                return res.status(400).json({
+                    message: error.message
+                });
+            }
+
+            return sendError(res);
+        }
+    },
+
     async obtenerHistorial(req, res) {
         try {
             const { userId } = req.params;

@@ -18,6 +18,6 @@ app.get('/', (req, resp) => {
 })
 
 app.use('/user', userRouter);
-app.use('/solicitud', logAccesosRouter);
+app.use('/accesos', logAccesosRouter);
 app.use('/logs', logsRouter);
 export default app;

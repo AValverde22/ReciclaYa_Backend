@@ -21,7 +21,14 @@ const repository = {
                 'id',
                 'user_id',
                 'direccion_ip',
+                'app_version',
+                'ciudad',
                 'pais',
+                'latitud',
+                'longitud',
+                'estado',
+                'tipo_actividad',
+                'dispositivo',
                 'fecha_login'
             ],
             order: [
