@@ -14,17 +14,7 @@ const controller = {
         try {
             const object = req.body;
     
-            const datosAcceso = {
-                direccion_ip: req.ip,
-                app_version: object.app_version ?? null,
-                ciudad: object.ciudad ?? null,
-                pais: object.pais ?? null,
-                latitud: object.latitud ?? null,
-                longitud: object.longitud ?? null,
-                dispositivo: object.dispositivo ?? null
-            };
-
-            const response = await userService.validate(object, datosAcceso);
+            const response = await userService.validate(object);
 
             return sendResults(response.success, 200, 400, response.existe, res);
         } catch (error) { return sendError(res) }
@@ -40,7 +30,16 @@ const controller = {
     async login(req, res) {
         try {
             const object = req.body;
-            const response = await userService.login(object);
+            const datosAcceso = {
+                direccion_ip: req.ip,
+                app_version: object.app_version ?? null,
+                ciudad: object.ciudad ?? null,
+                pais: object.pais ?? null,
+                latitud: object.latitud ?? null,
+                longitud: object.longitud ?? null,
+                dispositivo: object.dispositivo ?? null
+            };
+            const response = await userService.login(object, datosAcceso);
 
             return sendResults(response.success, 200, 400, response.user, res);
         } catch (error) { return sendError(res) }

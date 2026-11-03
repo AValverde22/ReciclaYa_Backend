@@ -3,11 +3,11 @@ import service from '../services/reportesActividad.js';
 const controller = {
     async registrar(req, res) {
         try {
-            const userId = req.user.id;
+            const userId = req.params.userId;
 
             const response = await service.registrar(
                 userId,
-                req.body ?? {}
+                { ...req.body, logAccesos_id: req.params.id }
             );
 
             return res.status(201).json({
@@ -53,7 +53,7 @@ const controller = {
 
     async obtenerPorUsuario(req, res) {
         try {
-            const response = await service.obtenerPorUsuario(req.user.id);
+            const response = await service.obtenerPorUsuario(req.params.userId);
 
             return res.status(200).json({
                 success: true,
@@ -73,8 +73,8 @@ const controller = {
     async obtenerDetalle(req, res) {
         try {
             const response = await service.obtenerDetalle(
-                req.params.id,
-                req.user.id
+                req.params.idReporte,
+                req.params.userId
             );
 
             return res.status(200).json({

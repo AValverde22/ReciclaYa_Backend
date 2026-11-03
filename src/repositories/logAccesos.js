@@ -1,7 +1,7 @@
 import initModels from '../models/init-models.js';
 import sequelize from '../config/database.js';
 
-const model = initModels(sequelize).log_solicitudes;
+const model = initModels(sequelize).logAccesos;
 
 const repository = {
     async registrar(datos) {

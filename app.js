@@ -3,6 +3,7 @@ import cors from 'cors'
 import bodyParser from 'body-parser';
 
 import userRouter from './src/routes/user.js'
+import solicitudRouter from './src/routes/solicitud.js';
 import logAccesosRouter from './src/routes/logAccesos.js';
 import logsRouter from './src/routes/logAccesos.js';
 
@@ -18,6 +19,7 @@ app.get('/', (req, resp) => {
 })
 
 app.use('/user', userRouter);
+app.use('/solicitud', solicitudRouter);
 app.use('/accesos', logAccesosRouter);
 app.use('/logs', logsRouter);
 export default app;

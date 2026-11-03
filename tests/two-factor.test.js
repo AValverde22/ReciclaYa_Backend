@@ -6,7 +6,7 @@ import _sequelize from 'sequelize';
 const { Op } = _sequelize;
 
 // HU-3.1 y HU-3.2: pruebas aisladas. Sin conexión a la base de datos ni envío real de correos.
-let users, challenges, sent, emailOk, nextId;
+let users, challenges, sent, emailOk, nextId, accessLogs;
 
 function matches(row, where = {}) {
     return Reflect.ownKeys(where).every(key => {
@@ -25,6 +25,7 @@ const pick = (row, attributes) => attributes ? Object.fromEntries(attributes.map
 const instance = (row) => Object.assign({ ...row }, { get: () => ({ ...row }) });
 
 const models = {
+    logAccesos: { async create(data) { accessLogs.push(data); return data; } },
     user: {
         async findOne({ where, attributes }) { const u = users.find(r => matches(r, where)); return u ? instance(pick(u, attributes)) : null; },
         async findByPk(id, { attributes } = {}) { const u = users.find(r => r.id === id); return u ? pick(u, attributes) : null; },
@@ -63,7 +64,7 @@ beforeEach(() => {
         { id: 1, full_name: 'Persona sin 2FA', email: 'sin2fa@test.pe', password: hashed, role: 'Usuario', profile_photo_url: null, score: 5, two_factor_enabled: false },
         { id: 2, full_name: 'Persona con 2FA', email: EMAIL, password: hashed, role: 'Reciclador', profile_photo_url: null, score: 4.5, two_factor_enabled: true }
     ];
-    challenges = []; sent = []; emailOk = true; nextId = 1;
+    challenges = []; sent = []; accessLogs = []; emailOk = true; nextId = 1;
 });
 
 const codeFrom = (mail) => mail.html.match(/<b>(\d{6})<\/b>/)[1];
@@ -268,4 +269,30 @@ test('HTTP contracts: login challenge, verify, resend and settings answer JSON',
         const invalid = await fetch(base + '/user/abc/two-factor');
         assert.equal(invalid.status, 400); assert.ok((await invalid.json()).message);
     } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
+});
+
+
+test('login stores access metadata once and rejected credentials are logged', async () => {
+    const metadata = {direccion_ip:'127.0.0.1', app_version:'1.2.0', dispositivo:'Test device', latitud:-12, longitud:-77, ciudad:'Lima', pais:'Perú'};
+    await userService.login({email:'sin2fa@test.pe', password:PASSWORD}, metadata);
+    assert.equal(accessLogs.length,1);
+    assert.deepEqual(accessLogs[0],{user_id:1,...metadata,estado:'Autorizado',tipo_actividad:'Inicio de sesión'});
+    await userService.login({email:'sin2fa@test.pe', password:'incorrecta'}, metadata);
+    assert.equal(accessLogs.length,2);
+    assert.equal(accessLogs[1].estado,'Rechazado');
+});
+
+test('2FA retains metadata and logs only after verification, including invalid attempts', async () => {
+    const metadata = {direccion_ip:'127.0.0.1', dispositivo:'Test device'};
+    const response = await userService.login({email:EMAIL,password:PASSWORD}, metadata);
+    assert.equal(accessLogs.length,0);
+    const code=codeFrom(sent.at(-1));
+    const request={email:EMAIL,challenge:response.user.challenge,code:wrongCode(code)};
+    assert.equal((await twoFactor.verify(request)).result,RESULT.INVALID);
+    assert.equal(accessLogs[0].estado,'Rechazado');
+    assert.equal((await twoFactor.verify({...request,code})).result,RESULT.VALID);
+    assert.equal(accessLogs.length,2);
+    assert.equal(accessLogs[1].estado,'Autorizado');
+    assert.equal(accessLogs[1].dispositivo,metadata.dispositivo);
+    assert.equal(accessLogs[1].direccion_ip,metadata.direccion_ip);
 });

@@ -98,7 +98,7 @@ const services = {
         // El intento se reserva antes de comparar para que peticiones simultáneas no superen el límite
         if (!await repository.reserveAttempt(pending.id, MAX_ATTEMPTS)) return { result: RESULT.BLOCKED };
         if (!await bcrypt.compare(value, pending.code_hash)) {
-            await registrarLogAcceso(
+            await services.registrarLogAcceso(
                 pending.user_id,
                 pending,
                 'Rechazado',
@@ -115,7 +115,7 @@ const services = {
             return { result: RESULT.INVALID_CHALLENGE };
         }
 
-        await registrarLogAcceso(
+        await services.registrarLogAcceso(
             pending.user_id,
             pending,
             'Autorizado',

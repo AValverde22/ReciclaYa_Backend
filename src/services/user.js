@@ -57,7 +57,7 @@ const services = {
             }
         }
     }, 
-    async login(objUsuario, datosAcceso) {
+    async login(objUsuario, datosAcceso = {}) {
         try {
             const { email, password } = objUsuario;
             
@@ -75,7 +75,7 @@ const services = {
 
             // Registrar el intento de inicio de sesión rechazado por contraseña invalida
                 try {
-                    await logAccesosServices.registrarAcceso(userRes.id, {
+                    await logAccesosServices.registrar(userRes.id, {
                         direccion_ip: datosAcceso.direccion_ip ?? null,
                         app_version: datosAcceso.app_version ?? null,
                         ciudad: datosAcceso.ciudad ?? null,
@@ -120,7 +120,7 @@ const services = {
 
             //Una vez validado el acceso del usuario, sus datos se envían a la tabla/modelo log_solicitudes
             try {
-            await logAccesosServices.registrarAcceso(userPlain.id, {
+            await logAccesosServices.registrar(userPlain.id, {
                 direccion_ip: datosAcceso.direccion_ip ?? null,
                 app_version: datosAcceso.app_version ?? null,
                 ciudad: datosAcceso.ciudad ?? null,
