@@ -2,6 +2,8 @@ import repository from '../repositories/recojo.js';
 import routesClient from '../clients/google-routes.js';
 import { positiveId, fail, coordinates, arrived, rating } from './recojo-rules.js';
 
+export const COMPLETED_PICKUP_POINTS = 100;
+
 async function actor(id, store = repository, role) {
     const u = await store.findUser(positiveId(id));
     if (!u || (role && u.role !== role)) fail('Usuario o rol inválido.', 403);
@@ -96,11 +98,20 @@ export default {
     async active(userId) {
         await actor(userId);
         const id = positiveId(userId);
-        const s = await repository.findActive(id);
+        const s = await repository.findCurrent(id);
         if (!s) return {solicitud:null};
         const other = await repository.findCounterpart(s.created_by === id ? s.accepted_by : s.created_by);
         const rated = await repository.findRating(s.id, id);
-        return {solicitud:s, counterpart:other, arrived:arrived(s), has_rated:!!rated};
+        const pointsAwarded = s.status === 'Finalizada' ? await repository.completionPoints(s.id, id) : 0;
+        const pointsBalance = s.status === 'Finalizada' ? await repository.pointsBalance(id) : null;
+        return {
+            solicitud:s,
+            counterpart:other,
+            arrived:s.status === 'Pendiente' && arrived(s),
+            has_rated:!!rated,
+            points_awarded:pointsAwarded,
+            points_balance:pointsBalance
+        };
     },
     async location(id, userId, body) {
         coordinates(body.latitude, body.longitude);
@@ -120,7 +131,19 @@ export default {
             if (s.status !== 'Pendiente') fail('El reciclaje no está activo.');
             if (!(s.user_confirmed && s.recycler_confirmed) && !arrived(s)) fail('El reciclador debe estar a menos de 100 metros con una ubicación reciente.');
             s = await store.updateRequest(s.id, positiveId(userId) === s.created_by ? {user_confirmed:true} : {recycler_confirmed:true});
-            return {success:true};
+            let completed = false;
+            if (s.user_confirmed && s.recycler_confirmed) {
+                s = await store.updateRequest(s.id, {status:'Finalizada', closed_at:new Date()});
+                await store.awardCompletionPoints(s, COMPLETED_PICKUP_POINTS);
+                completed = true;
+            }
+            return {
+                success:true,
+                completed,
+                status:s.status,
+                points_awarded:completed ? COMPLETED_PICKUP_POINTS : 0,
+                points_balance:completed ? await store.pointsBalance(positiveId(userId)) : null
+            };
         });
     },
     async rate(id, userId, body) {
@@ -129,23 +152,26 @@ export default {
         return repository.atomic(async store => {
             let s = await participating(id, userId, store);
             if (!s.user_confirmed || !s.recycler_confirmed) fail('Ambos participantes deben confirmar el fin del reciclaje.');
+            if (s.status !== 'Finalizada') fail('Solo se pueden calificar recojos finalizados.');
             const evaluator = positiveId(userId);
             const target = evaluator === s.created_by ? s.accepted_by : s.created_by;
-            if (!await store.findRating(s.id, evaluator)) {
-                if (s.status !== 'Pendiente') fail('El reciclaje no está activo.');
-                await store.createRating({solicitud_id:s.id, evaluador_id:evaluator, evaluado_id:target, puntuacion:body.puntuacion, comentario:body.comentario || null});
-                const average = await store.averageRating(target);
-                await store.updateScore(target, average);
-            }
-            if (await store.countRatings(s.id) === 2 && s.status === 'Pendiente')
-                s = await store.updateRequest(s.id, {status:'Finalizada', closed_at:new Date()});
-            return {success:true, status:s.status};
+            if (await store.findRating(s.id, evaluator)) fail('La calificación ya fue registrada.');
+            await store.createRating({
+                solicitud_id:s.id,
+                evaluador_id:evaluator,
+                evaluado_id:target,
+                puntuacion:body.puntuacion,
+                comentario:body.comentario?.trim() || null
+            });
+            const average = await store.averageRating(target);
+            await store.updateScore(target, average);
+            return {success:true, status:s.status, message:'Calificación registrada correctamente.'};
         });
     },
     async route(id, userId) {
         const state = await this.active(userId);
         const s = state.solicitud;
-        if (!s || s.id !== positiveId(id)) fail('Solicitud activa no encontrada.', 404);
+        if (!s || s.id !== positiveId(id) || s.status !== 'Pendiente') fail('Solicitud activa no encontrada.', 404);
         if (!routesClient.isConfigured()) return {polyline:null, message:'Ruta vial no configurada. Puede abrir la navegación externa.'};
         if (s.recycler_latitude == null) return {polyline:null, message:'Esperando ubicación del reciclador.'};
         return routesClient.computeRoute(
