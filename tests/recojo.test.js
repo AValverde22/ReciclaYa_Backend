@@ -4,7 +4,7 @@ import { Op } from 'sequelize';
 import { positiveId, coordinates, distanceMeters, arrived, rating } from '../src/services/recojo-rules.js';
 
 // Isolated service/HTTP contract tests. No connection to the configured production database.
-let users, solicitudes, ratings, queue = Promise.resolve(), failScore = false;
+let users, solicitudes, ratings, points, queue = Promise.resolve(), failScore = false;
 function matches(row, where = {}) {
     return Reflect.ownKeys(where).every(key => key === Op.or ? where[key].some(w => matches(row,w)) : row[key] === where[key]);
 }
@@ -23,6 +23,7 @@ const models = {
     solicitud: {
         async findByPk(id) { return wrap(solicitudes.find(s => s.id === id)); },
         async findOne({where}) { return wrap(solicitudes.find(s => matches(s,where))); },
+        async findAll({where}) { return solicitudes.filter(s => matches(s,where)).map(wrap); },
         async create(data) { const s = {id:solicitudes.length+1, accepted_by:null, user_confirmed:false, recycler_confirmed:false, closed_at:null, ...data}; solicitudes.push(s); return wrap(s); }
     },
     calificacion: {
@@ -32,14 +33,19 @@ const models = {
         },
         async count({where}) { return ratings.filter(r => matches(r,where)).length; },
         async create(data) { const row = {...data}; ratings.push(row); return wrap(row); }
+    },
+    puntosMovimiento: {
+        async findOne({where}) { return wrap(points.find(p => matches(p,where))); },
+        async create(data) { const row = {...data}; points.push(row); return wrap(row); },
+        async sum(field,{where}) { return points.filter(p => matches(p,where)).reduce((n,p) => n+p[field],0); }
     }
 };
 const db = {
     async transaction(work) {
         const previous = queue; let release; queue = new Promise(resolve => release = resolve); await previous;
-        const backup = structuredClone({users,solicitudes,ratings});
+        const backup = structuredClone({users,solicitudes,ratings,points});
         try { return await work({LOCK:{UPDATE:'UPDATE'}}); }
-        catch (error) { ({users,solicitudes,ratings} = backup); throw error; }
+        catch (error) { ({users,solicitudes,ratings,points} = backup); throw error; }
         finally { release(); }
     },
     async query(sql) { assert.match(sql,/pg_advisory_xact_lock/); },
@@ -53,7 +59,7 @@ const body = () => ({created_by:1, type:'Papel', size:'Mediana', day:'01/01/2099
 beforeEach(() => {
     users = [{id:1,role:'Usuario',score:5}, {id:2,role:'Reciclador',score:5}, {id:3,role:'Usuario',score:5}, {id:4,role:'Reciclador',score:5}];
     solicitudes = [1,2,3].map((id) => ({id, created_by:id === 3 ? 3 : 1, accepted_by:null, status:'Disponible', day:'2099-01-01', time:'12:00:00', latitude:-12, longitude:-77, user_confirmed:false, recycler_confirmed:false, closed_at:null}));
-    ratings = []; failScore = false;
+    ratings = []; points = []; failScore = false;
 });
 const conflict = (work, status = 409) => assert.rejects(work, error => error.status === status);
 async function atDestination() { await service.accept(1,2); await service.location(1,2,{latitude:-12,longitude:-77,accuracy:10}); }
@@ -137,15 +143,33 @@ test('both confirmations are required and survive reload', async () => {
     await atDestination(); await service.confirm(1,1);
     await conflict(() => service.rate(1,1,{puntuacion:5}));
     assert.equal((await service.active(2)).solicitud.user_confirmed,true);
-    await service.confirm(1,2); await service.confirm(1,2);
-    assert.equal(solicitudes[0].status,'Pendiente');
+    await service.confirm(1,2); await conflict(() => service.confirm(1,2));
+    assert.equal(solicitudes[0].status,'Finalizada');
 });
-test('mutual ratings persist, update averages, reject duplicates by idempotency and release both users only at end', async () => {
+test('completion awards points once to both participants and exposes the new balance', async () => {
+    await atDestination();
+    assert.deepEqual(await service.confirm(1,1),{success:true,completed:false,status:'Pendiente',points_awarded:0,points_balance:null});
+    assert.equal(points.length,0);
+    assert.deepEqual(await service.confirm(1,2),{success:true,completed:true,status:'Finalizada',points_awarded:100,points_balance:100});
+    await conflict(() => service.confirm(1,2));
+    assert.deepEqual(points.map(p => [p.user_id,p.solicitud_id,p.type,p.points]),[[1,1,'Ganado',100],[2,1,'Ganado',100]]);
+    const state = await service.active(1);
+    assert.equal(state.points_awarded,100); assert.equal(state.points_balance,100); assert.equal(state.has_rated,false);
+});
+test('cancelled or unfinished collections award no points and cannot be rated', async () => {
+    const notFinalized = error => error.status === 409 && error.message === 'Solo se pueden calificar recojos finalizados.';
+    await atDestination(); await service.confirm(1,1);
+    await assert.rejects(() => service.rate(1,1,{puntuacion:5}),notFinalized);
+    await service.cancelActive(1,1);
+    await assert.rejects(() => service.rate(1,1,{puntuacion:5}),notFinalized);
+    assert.equal(solicitudes[0].status,'Cancelada'); assert.equal(points.length,0); assert.equal(ratings.length,0);
+});
+test('mutual ratings persist, update averages, reject duplicates and release both users at finalization', async () => {
     await confirmed(); await service.rate(1,1,{puntuacion:4,comentario:'Gracias'});
-    assert.equal(users[1].score,4); assert.equal((await service.active(1)).has_rated,true);
+    assert.equal(users[1].score,4); assert.equal((await service.active(1)).solicitud,null);
     assert.equal((await service.active(2)).has_rated,false);
-    await conflict(() => service.accept(3,2));
-    await service.rate(1,1,{puntuacion:1}); assert.equal(ratings.length,1); assert.equal(users[1].score,4);
+    await assert.rejects(() => service.rate(1,1,{puntuacion:1}),error => error.status === 409 && error.message === 'La calificación ya fue registrada.');
+    assert.equal(ratings.length,1); assert.equal(users[1].score,4);
     await service.rate(1,2,{puntuacion:5});
     assert.equal(solicitudes[0].status,'Finalizada'); assert.equal(ratings.length,2);
     assert.equal((await service.active(1)).solicitud,null); assert.equal((await service.active(2)).solicitud,null);
@@ -158,7 +182,7 @@ test('simultaneous final ratings complete a collection once', async () => {
 test('rating and score update roll back together when score persistence fails', async () => {
     await confirmed(); failScore = true;
     await assert.rejects(() => service.rate(1,1,{puntuacion:3}));
-    assert.equal(ratings.length,0); assert.equal(users[1].score,5); assert.equal(solicitudes[0].status,'Pendiente');
+    assert.equal(ratings.length,0); assert.equal(users[1].score,5); assert.equal(solicitudes[0].status,'Finalizada');
 });
 test('rejects outsider ratings, invalid ratings, and oversized reviews', async () => {
     await confirmed(); await conflict(() => service.rate(1,3,{puntuacion:4}),403);
@@ -219,7 +243,7 @@ test('creator cancellation wins concurrent recycler withdrawal', async () => {
 test('concurrent cancellation and completion cannot reopen a confirmed collection', async () => {
     await atDestination(); await service.confirm(1,1);
     await Promise.allSettled([service.confirm(1,2),service.cancelActive(1,2)]);
-    assert.equal(solicitudes[0].status,'Pendiente');
+    assert.equal(solicitudes[0].status,'Finalizada');
     assert.equal(solicitudes[0].user_confirmed,true); assert.equal(solicitudes[0].recycler_confirmed,true);
 });
 
@@ -244,14 +268,16 @@ test('recycler withdrawal does not record a closure date', async () => {
     await service.accept(1,4); assert.equal(solicitudes[0].closed_at,null);
 });
 
-test('finalization records closure when both ratings complete and retries do not change it', async () => {
-    await confirmed(); assert.equal(solicitudes[0].closed_at,null);
-    await service.rate(1,1,{puntuacion:5}); assert.equal(solicitudes[0].closed_at,null);
-    const before = Date.now(); await service.rate(1,2,{puntuacion:4}); const after = Date.now();
+test('finalization records closure when both confirm and ratings or retries do not change it', async () => {
+    await atDestination(); await service.confirm(1,1); assert.equal(solicitudes[0].closed_at,null);
+    const before = Date.now(); await service.confirm(1,2); const after = Date.now();
     const closedAt = solicitudes[0].closed_at.getTime();
     assert.ok(closedAt >= before && closedAt <= after);
     assert.equal(solicitudes[0].day,'2099-01-01');
-    await service.rate(1,2,{puntuacion:1}); assert.equal(solicitudes[0].closed_at.getTime(),closedAt);
+    await conflict(() => service.confirm(1,2));
+    await service.rate(1,1,{puntuacion:5}); await service.rate(1,2,{puntuacion:4});
+    await conflict(() => service.rate(1,2,{puntuacion:1}));
+    assert.equal(solicitudes[0].closed_at.getTime(),closedAt);
     assert.equal(ratings.length,2);
 });
 

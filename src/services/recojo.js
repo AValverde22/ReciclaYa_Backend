@@ -151,8 +151,8 @@ export default {
         if (body.comentario != null && (typeof body.comentario !== 'string' || body.comentario.length > 1000)) fail('Reseña inválida (máximo 1000 caracteres).', 400);
         return repository.atomic(async store => {
             let s = await participating(id, userId, store);
-            if (!s.user_confirmed || !s.recycler_confirmed) fail('Ambos participantes deben confirmar el fin del reciclaje.');
             if (s.status !== 'Finalizada') fail('Solo se pueden calificar recojos finalizados.');
+            if (!s.user_confirmed || !s.recycler_confirmed) fail('Ambos participantes deben confirmar el fin del reciclaje.');
             const evaluator = positiveId(userId);
             const target = evaluator === s.created_by ? s.accepted_by : s.created_by;
             if (await store.findRating(s.id, evaluator)) fail('La calificación ya fue registrada.');

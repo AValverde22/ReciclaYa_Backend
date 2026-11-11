@@ -9,7 +9,7 @@ const defaults = [
     description: 'Kit para separar y transportar residuos reciclables.',
     provider: 'Municipalidad afiliada',
     points_required: 300,
-    conditions: 'Un canje por usuario mientras exista stock.',
+    conditions: 'Disponible mientras exista stock.',
     stock: 100
   },
   {
