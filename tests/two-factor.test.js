@@ -6,7 +6,7 @@ import _sequelize from 'sequelize';
 const { Op } = _sequelize;
 
 // HU-3.1 y HU-3.2: pruebas aisladas. Sin conexión a la base de datos ni envío real de correos.
-let users, challenges, sent, emailOk, nextId, accessLogs;
+let users, challenges, sent, emailOk, nextId, accessLogs, codes;
 
 function matches(row, where = {}) {
     return Reflect.ownKeys(where).every(key => {
@@ -26,6 +26,11 @@ const instance = (row) => Object.assign({ ...row }, { get: () => ({ ...row }) })
 
 const models = {
     logAccesos: { async create(data) { accessLogs.push(data); return data; } },
+    verification_code: {
+        async destroy({ where }) { codes = codes.filter(c => !matches(c, where)); },
+        async create(data) { codes.push({ ...data }); return data; },
+        async findOne({ where }) { const c = codes.find(r => matches(r, where)); return c ? { ...c } : null; }
+    },
     user: {
         async findOne({ where, attributes }) { const u = users.find(r => matches(r, where)); return u ? instance(pick(u, attributes)) : null; },
         async findByPk(id, { attributes } = {}) { const u = users.find(r => r.id === id); return u ? pick(u, attributes) : null; },
@@ -64,7 +69,7 @@ beforeEach(() => {
         { id: 1, full_name: 'Persona sin 2FA', email: 'sin2fa@test.pe', password: hashed, role: 'Usuario', profile_photo_url: null, score: 5, two_factor_enabled: false },
         { id: 2, full_name: 'Persona con 2FA', email: EMAIL, password: hashed, role: 'Reciclador', profile_photo_url: null, score: 4.5, two_factor_enabled: true }
     ];
-    challenges = []; sent = []; accessLogs = []; emailOk = true; nextId = 1;
+    challenges = []; sent = []; accessLogs = []; codes = []; emailOk = true; nextId = 1;
 });
 
 const codeFrom = (mail) => mail.html.match(/<b>(\d{6})<\/b>/)[1];
@@ -209,10 +214,15 @@ test('resend is rejected after the challenge lifetime and reports email failures
     assert.equal((await twoFactor.resend({ email: EMAIL, challenge })).result, RESULT.INVALID_CHALLENGE);
 });
 
-test('HU-3.1: activate and deactivate 2FA; deactivating requires the current password', async () => {
+test('HU-3.1: activate and deactivate 2FA; both require the current password', async () => {
     assert.deepEqual(await twoFactor.getStatus(1), { success: true, enabled: false });
 
-    assert.equal((await twoFactor.setStatus(1, { enabled: true })).result, RESULT.UPDATED);
+    for (const password of [undefined, '', 'otra'])
+        assert.deepEqual(await twoFactor.setStatus(1, { enabled: true, password }),
+            { success: true, result: RESULT.INVALID_PASSWORD, enabled: false });
+    assert.equal(users[0].two_factor_enabled, false);
+
+    assert.equal((await twoFactor.setStatus(1, { enabled: true, password: PASSWORD })).result, RESULT.UPDATED);
     assert.equal(users[0].two_factor_enabled, true);
     assert.equal((await twoFactor.getStatus(1)).enabled, true);
 
@@ -295,4 +305,27 @@ test('2FA retains metadata and logs only after verification, including invalid a
     assert.equal(accessLogs[1].estado,'Autorizado');
     assert.equal(accessLogs[1].dispositivo,metadata.dispositivo);
     assert.equal(accessLogs[1].direccion_ip,metadata.direccion_ip);
+});
+
+test('password reset requires the emailed recovery code and consumes it', async () => {
+    const email = 'sin2fa@test.pe', nueva = 'Nueva#2026';
+    await userService.recover({ email });
+    const code = sent.at(-1).html.match(/<b>(\d{6})\.<\/b>/)[1];
+
+    for (const intento of [undefined, '', wrongCode(code)]) {
+        const rejected = await userService.reset({ email, password: nueva, code: intento });
+        assert.equal(rejected.success, false); assert.equal(rejected.user.id, -1);
+    }
+    assert.ok(await bcrypt.compare(PASSWORD, users[0].password), 'the password is unchanged without the code');
+
+    assert.equal((await userService.compare({ email, code: Number(code) })).correcto, true);
+    assert.equal(codes.length, 1, 'checking the code does not consume it');
+
+    const done = await userService.reset({ email, password: nueva, code: Number(code) });
+    assert.equal(done.success, true); assert.equal(done.user.id, 1); assert.equal(done.user.password, undefined);
+    assert.ok(await bcrypt.compare(nueva, users[0].password));
+    assert.equal(codes.length, 0, 'the code is single use');
+
+    assert.equal((await userService.reset({ email, password: 'Otra#2026', code: Number(code) })).success, false);
+    assert.equal((await userService.reset({ email: 'nadie@test.pe', password: nueva, code })).success, false);
 });

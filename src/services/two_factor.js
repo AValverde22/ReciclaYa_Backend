@@ -163,11 +163,11 @@ const services = {
         const user = await userRepository.getSecurity(Number(id));
         if (!user) return { success: false, status: 404, message: 'Usuario no encontrado.' };
 
-        // Sin sesiones en el servidor, desactivar exige confirmar la contraseña
-        if (!enabled && Boolean(user.two_factor_enabled)) {
+        // Sin sesiones en el servidor, activar o desactivar exige confirmar la contraseña
+        if (enabled !== Boolean(user.two_factor_enabled)) {
             const passwordValid = typeof password === 'string' && password.length > 0
                 && await bcrypt.compare(password, user.password);
-            if (!passwordValid) return { success: true, result: RESULT.INVALID_PASSWORD, enabled: true };
+            if (!passwordValid) return { success: true, result: RESULT.INVALID_PASSWORD, enabled: !enabled };
         }
 
         await userRepository.updateTwoFactor(user.id, enabled);

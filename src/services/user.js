@@ -195,8 +195,7 @@ const services = {
                     const isCodeValid = await bcrypt.compare(code.toString(), vcRes.code);
                     
                     if(isCodeValid) {
-                        await verification_code.delete(userRes.id);
-
+                        // El código se consume recién al restablecer la contraseña
                         return {
                             success: true,
                             message: "Código correcto.",
@@ -221,11 +220,22 @@ const services = {
     },
     async reset (objUsuario) {
         try {
-            const { email, password } = objUsuario;
+            const { email, password, code } = objUsuario;
+
+            // Solo quien recibió el código de recuperación puede cambiar la contraseña
+            const owner = await repository.getID(email);
+            const vcRes = owner ? await verification_code.getCode(owner.id) : null;
+            const isCodeValid = vcRes !== null && await bcrypt.compare(String(code ?? ''), vcRes.code);
+            if(!isCodeValid) return {
+                success: false,
+                message: "Código inválido.",
+                user: { id: -1 }
+            }
 
             const salt = await bcrypt.genSalt(8);
             const hashedPassword = await bcrypt.hash(password, salt);
             const userRes = await repository.reset(email, hashedPassword);
+            await verification_code.delete(owner.id);
 
             const userPlain = userRes.get({ plain: true });
             const { password: _, ...userWithoutPassword } = userPlain;
