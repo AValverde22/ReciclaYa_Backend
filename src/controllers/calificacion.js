@@ -1,6 +1,16 @@
 import calificacionService from "../services/calificacion.js";
 
 const controller = {
+    async getReputation(req, res) {
+        try {
+            const response = await calificacionService.getReputation(req.params.id);
+            return res.status(response.success ? 200 : response.status).json(
+                response.success ? response.reputation : { message: response.message }
+            );
+        } catch (error) {
+            return res.status(500).json({ message: 'Error interno en el servidor.' });
+        }
+    },
     async create(req, res) {
         try {
             const { solicitud_id, puntuacion, comentario } = req.body;

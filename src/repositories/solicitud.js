@@ -95,7 +95,7 @@ const repository = {
                         {
                             model: initModels(sequelize).user,
                             required: true,
-                            attributes: ['full_name', 'profile_photo_url', 'score'],
+                            attributes: ['id', 'full_name', 'profile_photo_url', 'score'],
                             where: userQuery,
                             as: 'created_by_user'
                         }

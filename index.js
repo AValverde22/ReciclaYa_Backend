@@ -1,5 +1,6 @@
 import app from './app.js'
 import sequelize from './src/config/database.js'
+import { ensureSchema } from './src/config/schema.js'
 import { startExpirationTask, stopExpirationTask } from './src/repositories/solicitud.js'
 
 async function main() {
@@ -7,7 +8,7 @@ async function main() {
         const init = process.argv[2];
 
         if (init) await sequelize.sync({ force: true });
-        else await sequelize.sync({ force: false });
+        else await ensureSchema();
         await startExpirationTask();
 
         console.log('Base de datos sincronizada.');

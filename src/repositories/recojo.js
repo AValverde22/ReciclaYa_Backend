@@ -26,6 +26,28 @@ function scoped(transaction) {
                 order:[['id','ASC']]
             }));
         },
+        async findCurrent(userId) {
+            const pending = plain(await models.solicitud.findOne({
+                ...options,
+                where:{status:'Pendiente', [Op.or]:[{created_by:userId}, {accepted_by:userId}]},
+                order:[['id','ASC']]
+            }));
+            if (pending) return pending;
+            const finalized = await models.solicitud.findAll({
+                ...options,
+                where:{status:'Finalizada', [Op.or]:[{created_by:userId}, {accepted_by:userId}]},
+                order:[['closed_at','DESC'], ['id','DESC']],
+                limit:20
+            });
+            for (const row of finalized) {
+                const request = plain(row);
+                const rated = await models.calificacion.findOne({
+                    ...options, where:{solicitud_id:request.id, evaluador_id:userId}
+                });
+                if (!rated) return request;
+            }
+            return null;
+        },
         async findAcceptanceConflict(recyclerId, creatorId) {
             return plain(await models.solicitud.findOne({
                 ...options, where:{status:'Pendiente', [Op.or]:[{accepted_by:recyclerId}, {created_by:creatorId}]}
@@ -59,6 +81,34 @@ function scoped(transaction) {
         },
         async updateScore(userId, score) {
             await models.user.update({score}, {...options, where:{id:userId}});
+        },
+        async awardCompletionPoints(request, points) {
+            const userIds = [...new Set([request.created_by, request.accepted_by].filter(Boolean))];
+            for (const userId of userIds) {
+                const existing = await models.puntosMovimiento.findOne({
+                    ...options,
+                    where:{solicitud_id:request.id, user_id:userId, type:'Ganado'}
+                });
+                if (!existing) await models.puntosMovimiento.create({
+                    user_id:userId,
+                    solicitud_id:request.id,
+                    type:'Ganado',
+                    points,
+                    description:`Recojo #${request.id} finalizado`
+                }, options);
+            }
+        },
+        async pointsBalance(userId) {
+            const total = await models.puntosMovimiento.sum('points', {...options, where:{user_id:userId}});
+            return Number(total || 0);
+        },
+        async completionPoints(requestId, userId) {
+            const movement = await models.puntosMovimiento.findOne({
+                ...options,
+                where:{solicitud_id:requestId, user_id:userId, type:'Ganado'},
+                raw:true
+            });
+            return movement ? Number(movement.points) : 0;
         }
     };
 }

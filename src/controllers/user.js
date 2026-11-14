@@ -2,6 +2,22 @@ import userService from '../services/user.js'
 import twoFactorService from '../services/two_factor.js'
 
 const controller = {
+    async getProfile(req, res) {
+        try {
+            const result = await userService.getProfile(req.params.id);
+            return res.status(result.success ? 200 : result.status).json(
+                result.success ? result.profile : { message: result.message, field: result.field }
+            );
+        } catch (error) { return sendError(res); }
+    },
+    async updateProfile(req, res) {
+        try {
+            const result = await userService.updateProfile(req.params.id, req.body ?? {});
+            return res.status(result.success ? 200 : result.status).json(
+                result.success ? { ...result.profile, message: result.message } : { message: result.message, field: result.field }
+            );
+        } catch (error) { return sendError(res); }
+    },
     async getScore(req, res) {
         try {
             const result = await userService.getScore(req.params.id);

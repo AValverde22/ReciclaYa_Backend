@@ -1,69 +1,55 @@
 import initModels from '../models/init-models.js';
 import sequelize from '../config/database.js';
 
-const model = initModels(sequelize).calificacion;
-const modelS = initModels(sequelize).solicitud;
+const models = initModels(sequelize);
+const model = models.calificacion;
 
 const repository = {
-  async encontrarSolicitudEvaluador(solicitudId, evaluadorId) {
-    try{ return await model.findOne({
-        where: {
-            solicitud_id: solicitudId,
-            evaluador_id: evaluadorId
-        }
+  encontrarSolicitudEvaluador(solicitudId, evaluadorId) {
+    return model.findOne({ where: { solicitud_id: solicitudId, evaluador_id: evaluadorId } });
+  },
+  buscarInformacionSolicitud(solicitudId) {
+    return models.solicitud.findByPk(solicitudId, {
+      attributes: ['id', 'status', 'created_by', 'accepted_by', 'user_confirmed', 'recycler_confirmed']
     });
-    } catch (error) {
-        return null;
+  },
+  create(data) {
+    return model.create(data);
+  },
+  async actualizarScoreEvaluado(evaluadoId) {
+    const result = await model.findOne({
+      attributes: [[sequelize.fn('AVG', sequelize.col('puntuacion')), 'average']],
+      where: { evaluado_id: evaluadoId },
+      raw: true
+    });
+    const score = Math.round(Number(result?.average || 5) * 10) / 10;
+    await models.user.update({ score }, { where: { id: evaluadoId } });
+    return score;
+  },
+  async getReputation(userId) {
+    const user = await models.user.findByPk(userId, {
+      attributes: ['id', 'full_name', 'profile_photo_url', 'score'],
+      raw: true
+    });
+    if (!user) return null;
+    const rows = await model.findAll({
+      where: { evaluado_id: userId },
+      attributes: ['id', 'solicitud_id', 'puntuacion', 'comentario', 'created_at'],
+      include: [{
+        model: models.user,
+        as: 'evaluador',
+        required: true,
+        attributes: ['id', 'full_name', 'profile_photo_url']
+      }],
+      order: [['created_at', 'DESC'], ['id', 'DESC']]
+    });
+    const reviews = rows.map(row => row.get({ plain: true }));
+    return {
+      user,
+      average_rating: Number(user.score),
+      total_ratings: reviews.length,
+      reviews
     };
-  },
-
-  async buscarInformacionSolicitud(solicitudId) {
-    try {
-        return await modelS.findByPk(solicitudId, {
-            attributes: ['id', 'status', 'created_by', 'accepted_by']
-        });
-    } catch (error) { return null; }
-  },
-
-  async create(data) {
-    try { return await model.create(data);
-    } catch (error) {return null}
-    ;
-  },
-
-  async obtenerPromedioEvaluadoYActualizar(evaluadoId) {
-    try{
-        const result = await model.findOne({
-            attributes: [
-                [sequelize.fn('AVG', sequelize.col('puntuacion')), 'promedio']
-            ],
-            where: { evaluado_id: evaluadoId },
-            raw: true
-        });
-        
-        const promedio = result && result.promedio ? parseFloat(result.promedio) : 5.0;
-        const newScore = Math.round(promedio * 10) / 10;
-        
-        await modelS.update(
-            { score: newScore },
-            { where: { id: evaluadoId }}
-        );
-
-        return { nuevoScore: newScore };
-    } catch (error){ return null; }
-  },
-
-  async actualizarScoreEvaluado(){
-    const scoreData = await repository. obtenerPromedioEvaluado(evaluado_id);
-    const nuevoScore = Math.round((scoreData.promedio || 5.0) * 10) / 10;
-
-            await repository.update(
-                { score: nuevoScore },
-                { where: { id: evaluado_id }, transaction }
-            );
-
-            await transaction.commit();
-
   }
 };
 

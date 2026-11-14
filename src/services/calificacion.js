@@ -20,10 +20,10 @@ const services = {
                 };
             }
 
-            if (solicitud.status !== 'Finalizada') {
+            if (solicitud.status !== 'Finalizada' || !solicitud.user_confirmed || !solicitud.recycler_confirmed) {
                 return {
                     success: false,
-                    message: "Solo se pueden calificar solicitudes finalizadas."
+                    message: "Solo se pueden calificar recojos finalizados."
                 };
             }
 
@@ -51,7 +51,7 @@ const services = {
             if (existeCalificacion) {
                 return {    
                     success: false,
-                    message: "Ya se ha registrado una calificación para esta solicitud."
+                    message: "La calificación ya fue registrada."
                 };
             }
 
@@ -71,19 +71,13 @@ const services = {
                 };
             }
 
-            const repo = await repository.actualizarScoreEvaluado(evaluado_id);
-            if (!repo) {
-                return {
-                    success: false,
-                    message: "Error al actualizar calificación."
-                };
-            }
+            const nuevoScore = await repository.actualizarScoreEvaluado(evaluado_id);
 
             return {
                 success: true,
-                message: "Calificación registrada con éxito.",
+                message: "Calificación registrada correctamente.",
                 data: repoResponse,
-                nuevoScore: repo
+                nuevoScore
             };
 
         } catch (error) {
@@ -110,6 +104,18 @@ const services = {
                 calificacion: null,
                 message: error.message
             };
+        }
+    },
+    async getReputation(value) {
+        if (!/^[1-9]\d*$/.test(String(value)) || !Number.isSafeInteger(Number(value)))
+            return { success: false, status: 400, message: 'Identificador inválido.' };
+        try {
+            const reputation = await repository.getReputation(Number(value));
+            return reputation
+                ? { success: true, reputation }
+                : { success: false, status: 404, message: 'Usuario no encontrado.' };
+        } catch (error) {
+            return { success: false, status: 500, message: error.message };
         }
     }
 };
