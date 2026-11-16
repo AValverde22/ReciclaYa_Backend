@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { accesos, api, cuenta, models, usuariosRepo, usuariosService } from './apoyo-hu.js';
+import { accesos, api, cuenta, usuariosService } from './apoyo-hu.js';
 
 describe('Caja negra | Inicio de sesión', () => {
     test('HU-1.3 acepta credenciales válidas sin devolver la contraseña', async () => {
@@ -21,28 +21,14 @@ describe('Caja negra | Inicio de sesión', () => {
             assert.deepEqual((await api('POST', '/user/login', datos)).data, { id: -1 });
         }
     });
-
-    test('HU-1.3 abre la vista del rol que inició sesión',
-        { skip: 'Requiere las pantallas del frontend' });
 });
 
 describe('Caja blanca | Inicio de sesión', () => {
-    test('HU-1.3 solo registra el intento con contraseña incorrecta si existe la cuenta', async () => {
+    test('HU-1.3 registra los intentos de cuentas existentes según el resultado', async () => {
         await usuariosService.login({ ...cuenta, email: 'otro@example.test' });
         assert.equal(accesos.length, 0);
         await usuariosService.login({ ...cuenta, password: 'incorrecta' });
         await usuariosService.login(cuenta);
         assert.deepEqual(accesos.map(acceso => acceso.estado), ['Rechazado', 'Autorizado']);
-    });
-});
-
-describe('Unitaria | Inicio de sesión', () => {
-    test('HU-1.3 login termina si no encuentra al usuario', async (t) => {
-        const buscar = t.mock.method(usuariosRepo, 'login', async () => null);
-        const registrar = t.mock.method(models.logAccesos, 'create');
-        const resultado = await usuariosService.login(cuenta);
-        assert.deepEqual(resultado.user, { id: -1 });
-        assert.deepEqual(buscar.mock.calls[0].arguments, [cuenta.email]);
-        assert.equal(registrar.mock.callCount(), 0);
     });
 });

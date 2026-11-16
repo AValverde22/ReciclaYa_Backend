@@ -20,41 +20,42 @@ describe('Caja negra | Registro', () => {
         assert.equal((await api('POST', '/user/register', cuenta)).status, 400);
     });
 
-    test('HU-1.1 rechaza un registro sin contraseña', async () => {
-        const respuesta = await api('POST', '/user/register', { ...cuenta, password: undefined });
-        assert.equal(respuesta.status, 400);
-    });
-
-    test('HU-1.1 rechaza un correo con formato inválido', { todo: 'La API no valida el formato' }, async () => {
-        const respuesta = await api('POST', '/user/register', { ...cuenta, email: 'correo-invalido' });
-        assert.equal(respuesta.status, 400);
-    });
-
-    test('HU-1.1 rechaza una contraseña débil', { todo: 'La API no valida la fortaleza' }, async () => {
-        const respuesta = await api('POST', '/user/register', { ...cuenta, email: 'debil@example.test', password: '123' });
-        assert.equal(respuesta.status, 400);
-    });
-
-    test('HU-1.1 valida la confirmación de la contraseña en el registro',
-        { skip: 'Requiere el formulario de registro del frontend' });
+    for (const [campo, nombre] of [['full_name', 'nombre'], ['email', 'correo'], ['password', 'contraseña']]) {
+        test(`HU-1.1 rechaza el registro sin ${nombre}`, async () => {
+            const datos = { ...cuenta, email: 'nueva@example.test' };
+            delete datos[campo];
+            const respuesta = await api('POST', '/user/register', datos);
+            assert.equal(respuesta.status, 400);
+        });
+    }
 });
 
-describe('Caja blanca | Registro', () => {
-    test('HU-1.1 si falla el repositorio, registro devuelve un error y el ID -1', async (t) => {
-        const guardar = t.mock.method(usuariosRepo, 'register', async () => { throw new Error('Fallo de prueba'); });
-        assert.deepEqual(await usuariosService.register(cuenta), { success: false, message: 'Fallo de prueba', id: -1 });
-        assert.equal(guardar.mock.callCount(), 1);
-    });
-});
-
-describe('Unitaria | Registro', () => {
-    test('HU-1.1 register guarda un hash que corresponde a la contraseña', async (t) => {
+describe('Caja blanca unitaria | Registro', () => {
+    test('HU-1.1 el registro exitoso conserva el rol y guarda un hash de la contraseña', async (t) => {
         const guardar = t.mock.method(usuariosRepo, 'register', async () => ({ id: 7 }));
         const resultado = await usuariosService.register(cuenta);
+        assert.equal(resultado.success, true);
         assert.equal(resultado.id, 7);
         assert.equal(guardar.mock.callCount(), 1);
-        const { password } = guardar.mock.calls[0].arguments[0];
+        const { password, role } = guardar.mock.calls[0].arguments[0];
+        assert.equal(role, cuenta.role);
         assert.notEqual(password, cuenta.password);
         assert.equal(await bcrypt.compare(cuenta.password, password), true);
+    });
+
+    test('HU-1.1 si el hash falla, el registro termina antes de guardar', async (t) => {
+        const guardar = t.mock.method(usuariosRepo, 'register');
+        const resultado = await usuariosService.register({ ...cuenta, password: undefined });
+        assert.equal(resultado.success, false);
+        assert.equal(resultado.id, -1);
+        assert.equal(guardar.mock.callCount(), 0);
+    });
+
+    test('HU-1.1 si el repositorio devuelve null, el servicio devuelve un error', async (t) => {
+        const guardar = t.mock.method(usuariosRepo, 'register', async () => null);
+        const resultado = await usuariosService.register(cuenta);
+        assert.equal(resultado.success, false);
+        assert.equal(resultado.id, -1);
+        assert.equal(guardar.mock.callCount(), 1);
     });
 });

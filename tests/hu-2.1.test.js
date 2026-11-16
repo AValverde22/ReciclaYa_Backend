@@ -12,6 +12,7 @@ describe('Caja negra | Publicación de solicitud', () => {
         assert.equal(listado.data[0].type, solicitud.type);
         assert.equal(listado.data[0].address, solicitud.address);
         assert.equal(listado.data[0].day, solicitud.day);
+        assert.equal(listado.data[0].time, solicitud.time);
     });
 
     test('HU-2.1 la solicitud nueva queda en estado Pendiente', { todo: 'La API la registra como Disponible' }, async () => {
@@ -23,6 +24,11 @@ describe('Caja negra | Publicación de solicitud', () => {
 
     test('HU-2.1 rechaza la publicación sin descripción', { todo: 'La API no usa el campo descripción' }, async () => {
         const respuesta = await api('POST', '/solicitud', { ...solicitud, description: '' });
+        assert.equal(respuesta.status, 400);
+    });
+
+    test('HU-2.1 rechaza una dirección compuesta solo por espacios', async () => {
+        const respuesta = await api('POST', '/solicitud', { ...solicitud, address: '   ' });
         assert.equal(respuesta.status, 400);
     });
 
@@ -53,11 +59,28 @@ describe('Caja blanca | Publicación de solicitud', () => {
     });
 });
 
-describe('Unitaria | Publicación de solicitud', () => {
-    test('HU-2.1 coordinates acepta los límites y rechaza valores fuera de rango', () => {
+describe('Caja blanca unitaria | Caminos básicos de coordinates', () => {
+    // Seis condiciones simples con cortocircuito dan siete caminos independientes.
+    test('HU-2.1 todas las condiciones son falsas para coordenadas válidas en los límites', () => {
         assert.doesNotThrow(() => coordinates(90, 180));
         assert.doesNotThrow(() => coordinates(-90, -180));
-        assert.throws(() => coordinates(90.01, 0), { status: 400 });
-        assert.throws(() => coordinates(0, -180.01), { status: 400 });
     });
+
+    const rechazos = [
+        ['latitud de tipo incorrecto', '-12', -77],
+        ['longitud de tipo incorrecto', -12, '-77'],
+        ['latitud no finita', NaN, -77],
+        ['longitud no finita', -12, Infinity],
+        ['latitud fuera de rango', 90.01, -77],
+        ['longitud fuera de rango', -12, -180.01]
+    ];
+
+    for (const [motivo, latitud, longitud] of rechazos) {
+        test(`HU-2.1 coordinates rechaza ${motivo}`, () => {
+            assert.throws(() => coordinates(latitud, longitud), {
+                status: 400,
+                message: 'Coordenadas inválidas.'
+            });
+        });
+    }
 });
