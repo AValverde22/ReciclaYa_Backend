@@ -57,3 +57,12 @@ test('HU-4.2 publica condiciones, rechaza saldo insuficiente y descuenta un canj
     assert.equal(cuenta.data.balance, 50);
     assert.ok(cuenta.data.history.some(item => item.type === 'Canjeado' && item.points === -beneficio.points_required));
 });
+test('HU-4.2 | Caja blanca: un ID inválido de beneficio impide invocar el canje', async (t) => {
+    const { default: servicio } = await import('../src/services/puntos.js');
+    const { default: repositorio } = await import('../src/repositories/puntos.js');
+    const guardar = t.mock.method(repositorio, 'redeem');
+    const respuesta = await servicio.redeem('1', '0');
+    assert.equal(respuesta.success, false);
+    assert.equal(respuesta.status, 400);
+    assert.equal(guardar.mock.callCount(), 0);
+});

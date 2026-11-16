@@ -36,3 +36,9 @@ test('HU-4.1 rechaza calificar recojos pendientes o cancelados y estrellas fuera
     const respuesta = await api('POST', `/solicitud/${id}/calificacion`, { evaluador_id: 1, puntuacion: 6 });
     assert.equal(respuesta.status, 400);
 });
+test('HU-4.1 | Unitaria: la regla de estrellas acepta los límites y rechaza valores inválidos', async () => {
+    const { rating } = await import('../src/services/recojo-rules.js');
+    for (const valor of [1, 5]) assert.doesNotThrow(() => rating(valor));
+    for (const valor of [0, 6, 2.5]) assert.throws(() => rating(valor), { status: 400 });
+});
+

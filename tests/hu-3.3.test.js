@@ -33,3 +33,11 @@ test('HU-3.3 deniega la consulta sin una sesión autenticada', {
     const respuesta = await api('GET', '/accesos/2');
     assert.ok([401, 403].includes(respuesta.status), 'La API debe exigir autenticación y comprobar la cuenta');
 });
+test('HU-3.3 | Caja blanca: la consulta aplica un máximo de 20 accesos y pasa el filtro', async (t) => {
+    const { default: servicio } = await import('../src/services/logAccesos.js');
+    const { default: repositorio } = await import('../src/repositories/logAccesos.js');
+    const consultar = t.mock.method(repositorio, 'obtenerHistorial', async () => []);
+    assert.deepEqual(await servicio.obtenerHistorial('1', 'Inicio de sesión'), []);
+    assert.equal(consultar.mock.callCount(), 1);
+    assert.deepEqual(consultar.mock.calls[0].arguments, [1, 20, 'Inicio de sesión']);
+});

@@ -31,3 +31,13 @@ test('HU-1.6 rechaza un correo inválido y un duplicado sin cambiar el perfil', 
     assert.match(duplicado.data.message, /ya está registrado/i);
     assert.equal((await api('GET', ruta)).data.email, email);
 });
+test('HU-1.6 | Caja blanca: un correo inválido se rechaza antes de acceder al repositorio', async (t) => {
+    const { default: servicio } = await import('../src/services/user.js');
+    const { default: repositorio } = await import('../src/repositories/user.js');
+    const leer = t.mock.method(repositorio, 'getProfile');
+    const guardar = t.mock.method(repositorio, 'updateProfile');
+    const respuesta = await servicio.updateProfile(1, { full_name: 'Ana Pérez', email: 'invalido' });
+    assert.equal(respuesta.field, 'email');
+    assert.equal(leer.mock.callCount(), 0);
+    assert.equal(guardar.mock.callCount(), 0);
+});

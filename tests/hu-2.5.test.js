@@ -21,3 +21,18 @@ test('HU-2.5 rechaza una segunda aceptación y conserva la asignación original'
     assert.match(conflicto.data.message, /ya no se encuentra disponible/i);
     assert.equal((await api('GET', '/solicitud/activa?user_id=2')).data.solicitud.accepted_by, 2);
 });
+test('HU-2.5 | Caja blanca: si el reciclador tiene un recojo activo, no cambia la asignación', async (t) => {
+    const { default: servicio } = await import('../src/services/recojo.js');
+    const { default: repositorio } = await import('../src/repositories/recojo.js');
+    const guardar = t.mock.fn();
+    const consultarConflicto = t.mock.fn(async () => ({ id: 8 }));
+    t.mock.method(repositorio, 'atomic', async trabajo => trabajo({
+        findUser: async id => ({ id, role: 'Reciclador' }),
+        findRequest: async () => ({ id: 7, created_by: 1, status: 'Disponible', day: '2099-06-15', time: '12:00' }),
+        findAcceptanceConflict: consultarConflicto,
+        updateRequest: guardar
+    }));
+    await assert.rejects(() => servicio.accept(7, 2), { status: 409 });
+    assert.deepEqual(consultarConflicto.mock.calls[0].arguments, [2, 1]);
+    assert.equal(guardar.mock.callCount(), 0);
+});

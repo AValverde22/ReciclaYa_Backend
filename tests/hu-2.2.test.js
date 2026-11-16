@@ -21,3 +21,15 @@ test('HU-2.2 rechaza campos obligatorios vacíos y bloquea la edición tras acep
     assert.equal((await api('PATCH', ruta, { ...camposSolicitud, address: 'Otra dirección' })).status, 409);
     assert.equal((await api('GET', '/solicitud?user_id=1')).data[0].address, camposSolicitud.address);
 });
+test('HU-2.2 | Caja blanca: un usuario ajeno no llega a ejecutar la escritura', async (t) => {
+    const { default: servicio } = await import('../src/services/recojo.js');
+    const { default: repositorio } = await import('../src/repositories/recojo.js');
+    const guardar = t.mock.fn();
+    t.mock.method(repositorio, 'atomic', async trabajo => trabajo({
+        findUser: async id => ({ id, role: 'Usuario' }),
+        findRequest: async () => ({ id: 7, created_by: 1, status: 'Disponible' }),
+        updateRequest: guardar
+    }));
+    await assert.rejects(() => servicio.edit(7, 4, camposSolicitud), { status: 403 });
+    assert.equal(guardar.mock.callCount(), 0);
+});

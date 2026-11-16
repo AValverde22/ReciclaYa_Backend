@@ -37,3 +37,15 @@ test('HU-3.2 permite reenviar tras el tiempo de espera y acepta el código envia
     const respuesta = await api('POST', '/user/login/verify', { email, challenge, code: ultimoCodigo() });
     assert.equal(respuesta.data.result, 'VALID');
 });
+test('HU-3.2 | Caja blanca: un código vencido no reserva intentos ni consume el reto', async (t) => {
+    const { default: servicio } = await import('../src/services/two_factor.js');
+    const { default: repositorio } = await import('../src/repositories/two_factor.js');
+    const { challenge } = await servicio.startChallenge({ id: 1, email });
+    await modelos.two_factor_challenge.update({ expires_at: new Date(0) }, { where: { user_id: 1 } });
+    const reservar = t.mock.method(repositorio, 'reserveAttempt');
+    const consumir = t.mock.method(repositorio, 'consume');
+    const respuesta = await servicio.verify({ email, challenge, code: ultimoCodigo() });
+    assert.equal(respuesta.result, 'EXPIRED');
+    assert.equal(reservar.mock.callCount(), 0);
+    assert.equal(consumir.mock.callCount(), 0);
+});

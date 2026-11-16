@@ -26,3 +26,15 @@ test('HU-2.4 devuelve un listado vacío cuando no hay solicitudes disponibles', 
     await sembrarSolicitud({ status: 'Cancelada' });
     assert.deepEqual(await api('GET', '/solicitud/disponibles'), { status: 200, data: [] });
 });
+test('HU-2.4 | Caja blanca: el servicio pasa al repositorio los filtros de disponibilidad', async (t) => {
+    const { default: servicio } = await import('../src/services/solicitud.js');
+    const { default: repositorio } = await import('../src/repositories/solicitud.js');
+    const { Op } = await import('sequelize');
+    const consultar = t.mock.method(repositorio, 'getDisponibles', async () => []);
+    const respuesta = await servicio.getDisponibles({ type: 'Vidrio', time: '15:00' });
+    assert.equal(respuesta.success, true);
+    assert.equal(consultar.mock.callCount(), 1);
+    assert.deepEqual(consultar.mock.calls[0].arguments, [
+        { status: 'Disponible', type: 'Vidrio', time: { [Op.gte]: '15:00' } }, {}
+    ]);
+});

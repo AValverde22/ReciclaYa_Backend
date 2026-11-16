@@ -45,3 +45,11 @@ test('HU-3.4 registra un reporte del acceso y evita duplicarlo', async () => {
     assert.equal(listado.status, 200);
     assert.deepEqual(listado.data.data.map(item => item.id), [reporte.data.data.id]);
 });
+test('HU-3.4 | Caja blanca: el detalle consulta por ID de acceso y de cuenta', async (t) => {
+    const { default: servicio } = await import('../src/services/logAccesos.js');
+    const { default: repositorio } = await import('../src/repositories/logAccesos.js');
+    const buscar = t.mock.method(repositorio, 'obtenerPorId', async () => null);
+    assert.equal(await servicio.obtenerDetalle('7', '1'), null);
+    assert.equal(buscar.mock.callCount(), 1);
+    assert.deepEqual(buscar.mock.calls[0].arguments, [7, 1]);
+});

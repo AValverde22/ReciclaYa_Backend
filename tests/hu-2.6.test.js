@@ -25,3 +25,17 @@ test('HU-2.6 bloquea edición y cancelación en solicitudes cerradas', async () 
         assert.equal(listado.data.find(item => item.id === id).status, status);
     }
 });
+test('HU-2.6 | Unitaria: el servicio adapta la fecha y el reciclador asignado', async (t) => {
+    const { default: servicio } = await import('../src/services/solicitud.js');
+    const { default: repositorio } = await import('../src/repositories/solicitud.js');
+    const reciclador = { id: 2, full_name: 'Luis Ramos' };
+    const buscar = t.mock.method(repositorio, 'getByCreator', async () => [{
+        id: 7, day: '2099-06-15', status: 'Pendiente', accepted_by_user: reciclador
+    }]);
+    const respuesta = await servicio.getByCreator(1);
+    assert.equal(respuesta.success, true);
+    assert.equal(buscar.mock.callCount(), 1);
+    assert.deepEqual(buscar.mock.calls[0].arguments, [1]);
+    assert.equal(respuesta.solicitudes[0].day, '15/06/2099');
+    assert.deepEqual(respuesta.solicitudes[0].user, reciclador);
+});
